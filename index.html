@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BemolRun 2025 — Painel de Vagas</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f5f2;
+      --bg-tertiary: #eeece6;
+      --text-primary: #1a1a18;
+      --text-secondary: #6b6b67;
+      --text-tertiary: #9a9a96;
+      --border-light: rgba(0,0,0,0.08);
+      --border-mid: rgba(0,0,0,0.13);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1e1e1c;
+        --bg-secondary: #272724;
+        --bg-tertiary: #161614;
+        --text-primary: #e8e6df;
+        --text-secondary: #9a9a96;
+        --text-tertiary: #68685e;
+        --border-light: rgba(255,255,255,0.08);
+        --border-mid: rgba(255,255,255,0.13);
+      }
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--bg-primary);
+      border-bottom: 0.5px solid var(--border-mid);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: #1a1a18;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .logo-icon { background: #e8e6df; }
+      .logo-icon svg { color: #1a1a18; }
+    }
+
+    .badge-live {
+      background: #EAF3DE;
+      color: #3B6D11;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .updated-at { font-size: 12px; color: var(--text-tertiary); }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      letter-spacing: -0.02em;
+    }
+
+    .page-sub {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+    }
+
+    /* Metrics */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 700px) {
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .metric {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .metric-sub {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 5px;
+    }
+
+    /* Section titles */
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    /* Category cards */
+    .categories {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 700px) {
+      .categories { grid-template-columns: 1fr; }
+    }
+
+    .cat-card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+    }
+
+    .cat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .cat-name { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+    .cat-pct { font-size: 13px; font-weight: 500; }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .progress-fill { height: 100%; border-radius: 4px; }
+
+    .cat-nums {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+
+    .num-used { font-weight: 500; color: var(--text-primary); }
+    .num-total { color: var(--text-secondary); }
+    .num-free { font-weight: 500; }
+
+    /* Filters */
+    .filter-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filter-label { font-size: 13px; color: var(--text-secondary); }
+
+    select {
+      font-size: 13px;
+      font-family: var(--font);
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      padding: 6px 10px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      cursor: pointer;
+      outline: none;
+    }
+
+    select:focus { border-color: #378ADD; }
+
+    /* Table */
+    .table-wrap {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      min-width: 620px;
+    }
+
+    th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 10px 16px;
+      border-bottom: 0.5px solid var(--border-light);
+      background: var(--bg-secondary);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 0.5px solid var(--border-light);
+      color: var(--text-primary);
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--bg-secondary); }
+
+    .status-pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .status-active  { background: #EAF3DE; color: #3B6D11; }
+    .status-soon    { background: #FAEEDA; color: #854F0B; }
+    .status-ended   { background: #F1EFE8; color: #5F5E5A; }
+
+    .mini-bar { display: flex; align-items: center; gap: 8px; }
+    .mini-track {
+      flex: 1;
+      height: 4px;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+      overflow: hidden;
+      min-width: 60px;
+    }
+    .mini-fill { height: 100%; border-radius: 4px; }
+    .mini-pct { font-size: 11px; color: var(--text-secondary); min-width: 32px; text-align: right; }
+
+    /* Charts */
+    .chart-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+      gap: 10px;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 700px) {
+      .chart-row { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+    }
+
+    .donut-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    /* Export btn */
+    .export-btn {
+      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-mid);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-family: var(--font);
+      transition: background 0.15s;
+    }
+    .export-btn:hover { background: var(--bg-secondary); }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-tertiary);
+      padding: 2rem 1rem;
+      border-top: 0.5px solid var(--border-light);
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="8" width="3" height="7" rx="1" fill="white" opacity="0.5"/>
+        <rect x="6" y="5" width="3" height="10" rx="1" fill="white" opacity="0.7"/>
+        <rect x="11" y="1" width="3" height="14" rx="1" fill="white"/>
+      </svg>
+    </div>
+    BemolRun 2025
+    <span class="badge-live">Ao vivo</span>
+  </div>
+  <div class="header-right">
+    <button class="export-btn" onclick="exportCSV()">⬇ Exportar CSV</button>
+    <span class="updated-at" id="updatedAt"></span>
+  </div>
+</header>
+
+<main>
+  <h1 class="page-title">Painel de Vagas e Estoque</h1>
+  <p class="page-sub">Acompanhe em tempo real a ocupação dos lotes por categoria.</p>
+
+  <div class="metrics" id="metrics"></div>
+
+  <p class="section-title">Vagas por categoria</p>
+  <div class="categories" id="catGrid"></div>
+
+  <div class="filter-row">
+    <span class="filter-label">Filtrar:</span>
+    <select id="filterCat" onchange="renderLotes()">
+      <option value="all">Todas as categorias</option>
+      <option value="5k">5 km</option>
+      <option value="10k">10 km</option>
+      <option value="21k">21 km</option>
+    </select>
+    <select id="filterStatus" onchange="renderLotes()">
+      <option value="all">Todos os status</option>
+      <option value="Ativo">Ativo</option>
+      <option value="Em breve">Em breve</option>
+      <option value="Esgotado">Esgotado</option>
+    </select>
+  </div>
+
+  <p class="section-title">Lotes de inscrição</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Lote</th>
+          <th>Categoria</th>
+          <th>Preço</th>
+          <th>Período</th>
+          <th>Ocupação</th>
+          <th>Inscritos</th>
+          <th>Livres</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="loteBody"></tbody>
+    </table>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card">
+      <p class="section-title" style="margin-bottom:14px">Inscrições por dia (últimas 2 semanas)</p>
+      <div style="position:relative;height:220px;">
+        <canvas id="lineChart" role="img" aria-label="Gráfico de linha com evolução de inscrições por dia por categoria">Evolução diária de inscrições por categoria.</canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <p class="section-title" style="margin-bottom:10px">Distribuição por categoria</p>
+      <div class="donut-legend" id="donutLegend"></div>
+      <div style="position:relative;height:170px;">
+        <canvas id="donutChart" role="img" aria-label="Gráfico de rosca com distribuição de inscritos por categoria">5km: 43%, 10km: 37%, 21km: 20%.</canvas>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  BemolRun 2025 &mdash; Painel administrativo de vagas &mdash; Dados atualizados automaticamente
+</footer>
+
+<script>
+  // ── DATA ──────────────────────────────────────────────────────────────────
+  const cats = [
+    { id: '5k',  name: '5 km',  color: '#378ADD', total: 800,  used: 612 },
+    { id: '10k', name: '10 km', color: '#1D9E75', total: 600,  used: 527 },
+    { id: '21k', name: '21 km', color: '#D85A30', total: 400,  used: 281 },
+  ];
+
+  const lotes = [
+    { id:1,  name:'Lote 1', cat:'5k',  preco:'R$ 79,90',  inicio:'01/03', fim:'31/03', total:250, used:250, status:'Esgotado' },
+    { id:2,  name:'Lote 2', cat:'5k',  preco:'R$ 99,90',  inicio:'01/04', fim:'30/04', total:300, used:300, status:'Esgotado' },
+    { id:3,  name:'Lote 3', cat:'5k',  preco:'R$ 119,90', inicio:'01/05', fim:'25/05', total:250, used:62,  status:'Ativo'    },
+    { id:4,  name:'Lote 1', cat:'10k', preco:'R$ 99,90',  inicio:'01/03', fim:'31/03', total:200, used:200, status:'Esgotado' },
+    { id:5,  name:'Lote 2', cat:'10k', preco:'R$ 129,90', inicio:'01/04', fim:'30/04', total:200, used:200, status:'Esgotado' },
+    { id:6,  name:'Lote 3', cat:'10k', preco:'R$ 149,90', inicio:'01/05', fim:'25/05', total:200, used:127, status:'Ativo'    },
+    { id:7,  name:'Lote 1', cat:'21k', preco:'R$ 149,90', inicio:'01/03', fim:'31/03', total:150, used:150, status:'Esgotado' },
+    { id:8,  name:'Lote 2', cat:'21k', preco:'R$ 189,90', inicio:'01/04', fim:'30/04', total:150, used:131, status:'Ativo'    },
+    { id:9,  name:'Lote 3', cat:'21k', preco:'R$ 219,90', inicio:'01/06', fim:'30/06', total:100, used:0,   status:'Em breve' },
+  ];
+
+  const catLabel = { '5k': '5 km', '10k': '10 km', '21k': '21 km' };
+
+  // ── HELPERS ───────────────────────────────────────────────────────────────
+  function pct(used, total) { return Math.round(used / total * 100); }
+
+  function freeColor(p) {
+    if (p >= 90) return '#E24B4A';
+    if (p >= 70) return '#EF9F27';
+    return '#1D9E75';
+  }
+
+  // ── METRICS ───────────────────────────────────────────────────────────────
+  function renderMetrics() {
+    const totalV = cats.reduce((a, c) => a + c.total, 0);
+    const totalU = cats.reduce((a, c) => a + c.used, 0);
+    const totalL = totalV - totalU;
+    const p = pct(totalU, totalV);
+    document.getElementById('metrics').innerHTML = `
+      <div class="metric">
+        <div class="metric-label">Total de vagas</div>
+        <div class="metric-value">${totalV.toLocaleString('pt-BR')}</div>
+        <div class="metric-sub">todas as categorias</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Inscritos</div>
+        <div class="metric-value">${totalU.toLocaleString('pt-BR')}</div>
+        <div class="metric-sub">${p}% do total</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Vagas disponíveis</div>
+        <div class="metric-value" style="color:${freeColor(p)}">${totalL.toLocaleString('pt-BR')}</div>
+        <div class="metric-sub">${100 - p}% restante</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Lotes ativos</div>
+        <div class="metric-value">${lotes.filter(l => l.status === 'Ativo').length}</div>
+        <div class="metric-sub">${lotes.filter(l => l.status === 'Em breve').length} em breve</div>
+      </div>
+    `;
+  }
+
+  // ── CATEGORIES ────────────────────────────────────────────────────────────
+  function renderCats() {
+    document.getElementById('catGrid').innerHTML = cats.map(c => {
+      const p = pct(c.used, c.total);
+      return `
+        <div class="cat-card">
+          <div class="cat-header">
+            <span class="cat-name">${c.name}</span>
+            <span class="cat-pct" style="color:${c.color}">${p}% ocupado</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${p}%;background:${c.color}"></div>
+          </div>
+          <div class="cat-nums">
+            <span class="num-used">${c.used.toLocaleString('pt-BR')} inscritos</span>
+            <span class="num-total">de ${c.total.toLocaleString('pt-BR')}</span>
+            <span class="num-free" style="color:${freeColor(p)}">${(c.total - c.used).toLocaleString('pt-BR')} livres</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ── LOTES TABLE ───────────────────────────────────────────────────────────
+  function renderLotes() {
+    const fc = document.getElementById('filterCat').value;
+    const fs = document.getElementById('filterStatus').value;
+    const filtered = lotes.filter(l =>
+      (fc === 'all' || l.cat === fc) &&
+      (fs === 'all' || l.status === fs)
+    );
+    const statusClass = { 'Ativo': 'status-active', 'Em breve': 'status-soon', 'Esgotado': 'status-ended' };
+    document.getElementById('loteBody').innerHTML = filtered.map(l => {
+      const p = pct(l.used, l.total);
+      const col = cats.find(c => c.id === l.cat)?.color || '#888';
+      return `
+        <tr>
+          <td style="font-weight:600">${l.name}</td>
+          <td>${catLabel[l.cat]}</td>
+          <td>${l.preco}</td>
+          <td style="color:var(--text-secondary)">${l.inicio} – ${l.fim}</td>
+          <td>
+            <div class="mini-bar">
+              <div class="mini-track"><div class="mini-fill" style="width:${p}%;background:${col}"></div></div>
+              <span class="mini-pct">${p}%</span>
+            </div>
+          </td>
+          <td style="font-weight:500">${l.used.toLocaleString('pt-BR')}</td>
+          <td style="color:${freeColor(p)};font-weight:500">${(l.total - l.used).toLocaleString('pt-BR')}</td>
+          <td><span class="status-pill ${statusClass[l.status] || ''}">${l.status}</span></td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--text-tertiary);padding:28px">Nenhum lote encontrado para os filtros selecionados.</td></tr>`;
+  }
+
+  // ── CHARTS ────────────────────────────────────────────────────────────────
+  function renderCharts() {
+    const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    const textColor = isDark ? '#68685e' : '#9a9a96';
+
+    const days = ['21/04','22/04','23/04','24/04','25/04','26/04','27/04','28/04','29/04','30/04','01/05','02/05','03/05','04/05'];
+    new Chart(document.getElementById('lineChart'), {
+      type: 'line',
+      data: {
+        labels: days,
+        datasets: [
+          { label:'5 km',  data:[18,24,20,31,27,35,22,40,38,45,55,48,60,62], borderColor:'#378ADD', backgroundColor:'rgba(55,138,221,0.07)', tension:0.4, pointRadius:3, fill:true },
+          { label:'10 km', data:[12,18,15,20,18,25,30,28,35,40,45,50,55,127],borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.07)', tension:0.4, pointRadius:3, fill:true },
+          { label:'21 km', data:[8,10,12,15,18,14,20,25,22,30,28,35,40,131], borderColor:'#D85A30', backgroundColor:'rgba(216,90,48,0.05)',  tension:0.4, pointRadius:3, fill:true },
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{display:false},
+          tooltip:{ mode:'index', intersect:false }
+        },
+        scales:{
+          x:{ grid:{color:gridColor}, ticks:{color:textColor, font:{size:11}, maxRotation:45} },
+          y:{ grid:{color:gridColor}, ticks:{color:textColor, font:{size:11}} }
+        }
+      }
+    });
+
+    const donutData   = [612, 527, 281];
+    const donutColors = ['#378ADD','#1D9E75','#D85A30'];
+    const donutLabels = ['5 km','10 km','21 km'];
+    const total = donutData.reduce((a,b) => a+b, 0);
+
+    document.getElementById('donutLegend').innerHTML = donutLabels.map((l,i) => `
+      <span class="legend-item">
+        <span class="legend-dot" style="background:${donutColors[i]}"></span>
+        ${l} — ${Math.round(donutData[i]/total*100)}%
+      </span>
+    `).join('');
+
+    new Chart(document.getElementById('donutChart'), {
+      type:'doughnut',
+      data:{ labels:donutLabels, datasets:[{ data:donutData, backgroundColor:donutColors, borderWidth:0, hoverOffset:4 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, cutout:'65%' }
+    });
+  }
+
+  // ── EXPORT CSV ────────────────────────────────────────────────────────────
+  function exportCSV() {
+    const rows = [['Lote','Categoria','Preco','Inicio','Fim','Total','Inscritos','Livres','Status']];
+    lotes.forEach(l => rows.push([l.name, catLabel[l.cat], l.preco, l.inicio, l.fim, l.total, l.used, l.total - l.used, l.status]));
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'bemolrun-vagas.csv';
+    a.click();
+  }
+
+  // ── TIMESTAMP ─────────────────────────────────────────────────────────────
+  function updateTimestamp() {
+    const now = new Date();
+    document.getElementById('updatedAt').textContent =
+      'Atualizado às ' + now.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  // ── INIT ──────────────────────────────────────────────────────────────────
+  renderMetrics();
+  renderCats();
+  renderLotes();
+  renderCharts();
+  updateTimestamp();
+</script>
+</body>
+</html>
