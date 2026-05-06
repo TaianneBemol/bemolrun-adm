@@ -3,641 +3,770 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BemolRun 2025 — Painel de Vagas</title>
+  <title>BemolRun 2026 — Painel de Vagas</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg-primary: #ffffff;
-      --bg-secondary: #f5f5f2;
-      --bg-tertiary: #eeece6;
-      --text-primary: #1a1a18;
-      --text-secondary: #6b6b67;
-      --text-tertiary: #9a9a96;
-      --border-light: rgba(0,0,0,0.08);
-      --border-mid: rgba(0,0,0,0.13);
-      --radius-md: 8px;
-      --radius-lg: 12px;
+      --bg-primary: #ffffff; --bg-secondary: #f5f5f2; --bg-tertiary: #eeece6;
+      --text-primary: #1a1a18; --text-secondary: #6b6b67; --text-tertiary: #9a9a96;
+      --border-light: rgba(0,0,0,0.08); --border-mid: rgba(0,0,0,0.13);
+      --radius-md: 8px; --radius-lg: 12px;
       --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
     }
-
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg-primary: #1e1e1c;
-        --bg-secondary: #272724;
-        --bg-tertiary: #161614;
-        --text-primary: #e8e6df;
-        --text-secondary: #9a9a96;
-        --text-tertiary: #68685e;
-        --border-light: rgba(255,255,255,0.08);
-        --border-mid: rgba(255,255,255,0.13);
+        --bg-primary: #1e1e1c; --bg-secondary: #272724; --bg-tertiary: #161614;
+        --text-primary: #e8e6df; --text-secondary: #9a9a96; --text-tertiary: #68685e;
+        --border-light: rgba(255,255,255,0.08); --border-mid: rgba(255,255,255,0.13);
       }
     }
+    body { font-family: var(--font); background: var(--bg-tertiary); color: var(--text-primary); min-height: 100vh; }
 
-    body {
-      font-family: var(--font);
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      min-height: 100vh;
+    /* ── LOADING ── */
+    #loading {
+      position: fixed; inset: 0; background: var(--bg-tertiary);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; z-index: 100;
     }
+    .spinner {
+      width: 32px; height: 32px; border: 2.5px solid var(--border-mid);
+      border-top-color: var(--text-primary); border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 14px; color: var(--text-secondary); }
+    #error-msg { display: none; flex-direction: column; align-items: center; gap: 10px; }
+    .error-box { background: #FCEBEB; border: 0.5px solid #F09595; border-radius: var(--radius-lg); padding: 20px 28px; text-align: center; max-width: 440px; }
+    .error-box h3 { color: #A32D2D; font-size: 15px; margin-bottom: 6px; }
+    .error-box p { color: #791F1F; font-size: 13px; line-height: 1.6; }
 
+    /* ── HEADER ── */
     header {
-      background: var(--bg-primary);
-      border-bottom: 0.5px solid var(--border-mid);
-      padding: 0 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 56px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      background: var(--bg-primary); border-bottom: 0.5px solid var(--border-mid);
+      padding: 0 2rem; display: flex; align-items: center; justify-content: space-between;
+      height: 56px; position: sticky; top: 0; z-index: 10;
     }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-primary);
-      letter-spacing: -0.01em;
-    }
-
-    .logo-icon {
-      width: 28px;
-      height: 28px;
-      background: #1a1a18;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .logo-icon { background: #e8e6df; }
-      .logo-icon svg { color: #1a1a18; }
-    }
-
-    .badge-live {
-      background: #EAF3DE;
-      color: #3B6D11;
-      font-size: 11px;
-      font-weight: 500;
-      padding: 3px 10px;
-      border-radius: 20px;
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 13px;
-      color: var(--text-secondary);
-    }
-
+    .logo { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em; }
+    .logo-icon { width: 28px; height: 28px; background: #1a1a18; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+    @media (prefers-color-scheme: dark) { .logo-icon { background: #e8e6df; } }
+    .header-right { display: flex; align-items: center; gap: 12px; }
     .updated-at { font-size: 12px; color: var(--text-tertiary); }
 
-    main {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
-    }
+    /* ── TAB SWITCH ── */
+    .tab-switch { display: flex; align-items: center; background: var(--bg-secondary); border: 0.5px solid var(--border-mid); border-radius: var(--radius-md); padding: 3px; gap: 2px; }
+    .tab-btn { font-size: 13px; font-family: var(--font); font-weight: 500; padding: 5px 14px; border-radius: 6px; border: none; cursor: pointer; background: transparent; color: var(--text-secondary); transition: background 0.15s, color 0.15s; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+    .tab-btn svg { flex-shrink: 0; }
+    .tab-btn:hover { color: var(--text-primary); }
+    .tab-btn.active { background: var(--bg-primary); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .export-btn { font-size: 13px; padding: 6px 14px; border-radius: var(--radius-md); border: 0.5px solid var(--border-mid); background: var(--bg-primary); color: var(--text-primary); cursor: pointer; font-family: var(--font); }
+    .export-btn:hover { background: var(--bg-secondary); }
 
-    .page-title {
-      font-size: 22px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 4px;
-      letter-spacing: -0.02em;
-    }
+    /* ── LAYOUT ── */
+    main { max-width: 1140px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .page-title { font-size: 22px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; letter-spacing: -0.02em; }
+    .page-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 1.5rem; }
+    .section-title { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
 
-    .page-sub {
-      font-size: 14px;
-      color: var(--text-secondary);
-      margin-bottom: 1.5rem;
-    }
+    /* ── METRICS ── */
+    .metrics { display: grid; gap: 10px; margin-bottom: 1.5rem; }
+    .metrics-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    .metrics-4-shirt { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    @media (max-width: 800px) { .metrics-4, .metrics-4-shirt { grid-template-columns: repeat(2,1fr); } }
+    .metric { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; }
+    .metric-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric-value { font-size: 26px; font-weight: 600; color: var(--text-primary); line-height: 1; letter-spacing: -0.02em; }
+    .metric-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 5px; }
 
-    /* Metrics */
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
-      margin-bottom: 1.5rem;
-    }
-
-    @media (max-width: 700px) {
-      .metrics { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    .metric {
-      background: var(--bg-primary);
-      border: 0.5px solid var(--border-light);
-      border-radius: var(--radius-lg);
-      padding: 16px 18px;
-    }
-
-    .metric-label {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .metric-value {
-      font-size: 28px;
-      font-weight: 600;
-      color: var(--text-primary);
-      line-height: 1;
-      letter-spacing: -0.02em;
-    }
-
-    .metric-sub {
-      font-size: 12px;
-      color: var(--text-tertiary);
-      margin-top: 5px;
-    }
-
-    /* Section titles */
-    .section-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-tertiary);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 10px;
-    }
-
-    /* Category cards */
-    .categories {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      margin-bottom: 1.5rem;
-    }
-
-    @media (max-width: 700px) {
-      .categories { grid-template-columns: 1fr; }
-    }
-
-    .cat-card {
-      background: var(--bg-primary);
-      border: 0.5px solid var(--border-light);
-      border-radius: var(--radius-lg);
-      padding: 16px 18px;
-    }
-
-    .cat-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px;
-    }
-
-    .cat-name { font-size: 16px; font-weight: 600; color: var(--text-primary); }
-    .cat-pct { font-size: 13px; font-weight: 500; }
-
-    .progress-bar {
-      height: 6px;
-      background: var(--bg-secondary);
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 10px;
-    }
-
-    .progress-fill { height: 100%; border-radius: 4px; }
-
-    .cat-nums {
-      display: flex;
-      justify-content: space-between;
-      font-size: 13px;
-    }
-
-    .num-used { font-weight: 500; color: var(--text-primary); }
-    .num-total { color: var(--text-secondary); }
-    .num-free { font-weight: 500; }
-
-    /* Filters */
-    .filter-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
+    /* ── FILTERS ── */
+    .filter-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
     .filter-label { font-size: 13px; color: var(--text-secondary); }
-
-    select {
-      font-size: 13px;
-      font-family: var(--font);
-      border: 0.5px solid var(--border-mid);
-      border-radius: var(--radius-md);
-      padding: 6px 10px;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      cursor: pointer;
-      outline: none;
-    }
-
+    select { font-size: 13px; font-family: var(--font); border: 0.5px solid var(--border-mid); border-radius: var(--radius-md); padding: 6px 10px; background: var(--bg-primary); color: var(--text-primary); cursor: pointer; outline: none; }
     select:focus { border-color: #378ADD; }
 
-    /* Table */
-    .table-wrap {
-      background: var(--bg-primary);
-      border: 0.5px solid var(--border-light);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      margin-bottom: 1.5rem;
-      overflow-x: auto;
-    }
+    /* ── EVENT CARDS ── */
+    .event-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    @media (max-width: 800px) { .event-grid { grid-template-columns: repeat(2,1fr); } }
+    .event-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; }
+    .event-name { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+    .event-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .event-rows { display: flex; flex-direction: column; gap: 8px; }
+    .event-row { display: flex; justify-content: space-between; font-size: 13px; }
+    .event-row-label { color: var(--text-secondary); }
+    .event-row-val { font-weight: 500; color: var(--text-primary); }
+    .mini-bar { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+    .mini-track { flex: 1; height: 5px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
+    .mini-fill { height: 100%; border-radius: 4px; }
+    .mini-pct { font-size: 11px; color: var(--text-secondary); min-width: 30px; text-align: right; }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      min-width: 620px;
-    }
+    /* ── PAYMENT CARD ── */
+    .payment-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 2rem; }
+    .pay-row { flex: 1; display: flex; align-items: center; gap: 12px; }
+    .pay-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+    .pay-bar-wrap { flex: 1; display: flex; align-items: center; gap: 10px; }
+    .pay-bar-track { flex: 1; height: 6px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
+    .pay-bar-fill { height: 100%; border-radius: 4px; }
+    .pay-val { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; }
+    .pay-divider { width: 0.5px; height: 28px; background: var(--border-light); flex-shrink: 0; }
 
-    th {
-      text-align: left;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-tertiary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 10px 16px;
-      border-bottom: 0.5px solid var(--border-light);
-      background: var(--bg-secondary);
-      white-space: nowrap;
-    }
+    /* ── MOD CARDS ── */
+    .mod-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    .mod-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; }
+    .mod-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .mod-name { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+    .mod-pct { font-size: 13px; font-weight: 500; }
+    .progress-bar { height: 6px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+    .progress-fill { height: 100%; border-radius: 4px; }
+    .mod-nums { display: flex; justify-content: space-between; font-size: 13px; }
+    .num-used { font-weight: 500; color: var(--text-primary); }
+    .num-total { color: var(--text-secondary); }
 
-    td {
-      padding: 12px 16px;
-      border-bottom: 0.5px solid var(--border-light);
-      color: var(--text-primary);
-      vertical-align: middle;
-    }
-
+    /* ── TABLE ── */
+    .table-wrap { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 1.5rem; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+    th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 16px; border-bottom: 0.5px solid var(--border-light); background: var(--bg-secondary); white-space: nowrap; }
+    td { padding: 12px 16px; border-bottom: 0.5px solid var(--border-light); color: var(--text-primary); vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     tbody tr:hover td { background: var(--bg-secondary); }
+    .bar-cell { display: flex; align-items: center; gap: 8px; }
+    .bar-track { width: 80px; height: 4px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+    .bar-fill { height: 100%; border-radius: 4px; }
+    .bar-pct { font-size: 11px; color: var(--text-secondary); min-width: 32px; }
 
-    .status-pill {
-      display: inline-block;
-      font-size: 11px;
-      font-weight: 500;
-      padding: 3px 10px;
-      border-radius: 20px;
-      white-space: nowrap;
-    }
-
-    .status-active  { background: #EAF3DE; color: #3B6D11; }
-    .status-soon    { background: #FAEEDA; color: #854F0B; }
-    .status-ended   { background: #F1EFE8; color: #5F5E5A; }
-
-    .mini-bar { display: flex; align-items: center; gap: 8px; }
-    .mini-track {
-      flex: 1;
-      height: 4px;
-      background: var(--bg-secondary);
-      border-radius: 4px;
-      overflow: hidden;
-      min-width: 60px;
-    }
-    .mini-fill { height: 100%; border-radius: 4px; }
-    .mini-pct { font-size: 11px; color: var(--text-secondary); min-width: 32px; text-align: right; }
-
-    /* Charts */
-    .chart-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-      gap: 10px;
-      margin-bottom: 1.5rem;
-    }
-
-    @media (max-width: 700px) {
-      .chart-row { grid-template-columns: 1fr; }
-    }
-
-    .chart-card {
-      background: var(--bg-primary);
-      border: 0.5px solid var(--border-light);
-      border-radius: var(--radius-lg);
-      padding: 16px 18px;
-    }
-
-    .donut-legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 10px;
-      font-size: 12px;
-      color: var(--text-secondary);
-    }
-
+    /* ── CHARTS ── */
+    .chart-row { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(0,1fr); gap: 10px; margin-bottom: 1.5rem; }
+    @media (max-width: 700px) { .chart-row { grid-template-columns: 1fr; } }
+    .chart-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; }
+    .legend-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; font-size: 12px; color: var(--text-secondary); }
     .legend-item { display: flex; align-items: center; gap: 5px; }
     .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
 
-    /* Export btn */
-    .export-btn {
-      font-size: 13px;
-      padding: 6px 14px;
-      border-radius: var(--radius-md);
-      border: 0.5px solid var(--border-mid);
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      cursor: pointer;
-      font-family: var(--font);
-      transition: background 0.15s;
-    }
-    .export-btn:hover { background: var(--bg-secondary); }
+    /* ── SHIRT PAGE ── */
+    .shirt-charts-row { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    @media (max-width: 700px) { .shirt-charts-row { grid-template-columns: 1fr; } }
+    .gender-split-row { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    @media (max-width: 700px) { .gender-split-row { grid-template-columns: 1fr; } }
+    .gender-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 20px 22px; }
+    .gender-hero { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 16px; }
+    .gender-count { font-size: 36px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
+    .gender-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 2px; }
+    .size-breakdown { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .size-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .size-tag { width: 28px; font-weight: 600; color: var(--text-primary); text-align: center; font-size: 12px; background: var(--bg-secondary); border-radius: 4px; padding: 2px 0; flex-shrink: 0; }
+    .size-bar-track { flex: 1; height: 6px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
+    .size-bar-fill { height: 100%; border-radius: 4px; }
+    .size-count { min-width: 36px; text-align: right; font-weight: 500; color: var(--text-primary); }
+    .size-pct { min-width: 34px; color: var(--text-tertiary); font-size: 11px; }
+    .city-shirt-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    @media (max-width: 800px) { .city-shirt-grid { grid-template-columns: repeat(2,1fr); } }
+    .city-shirt-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; }
+    .city-shirt-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .city-size-list { display: flex; flex-direction: column; gap: 6px; }
+    .city-size-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .city-size-tag { width: 24px; font-weight: 600; font-size: 11px; background: var(--bg-secondary); border-radius: 3px; padding: 1px 0; text-align: center; color: var(--text-primary); flex-shrink: 0; }
+    .city-size-bar { flex: 1; height: 5px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; }
+    .city-size-fill { height: 100%; border-radius: 3px; }
+    .city-size-n { min-width: 30px; text-align: right; color: var(--text-secondary); }
 
-    footer {
-      text-align: center;
-      font-size: 12px;
-      color: var(--text-tertiary);
-      padding: 2rem 1rem;
-      border-top: 0.5px solid var(--border-light);
-      margin-top: 1rem;
-    }
+    footer { text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 2rem 1rem; border-top: 0.5px solid var(--border-light); margin-top: 1rem; }
   </style>
 </head>
 <body>
 
+<!-- Loading overlay -->
+<div id="loading">
+  <div id="loading-spinner">
+    <div class="spinner"></div>
+    <p class="loading-text">Carregando dados...</p>
+  </div>
+  <div id="error-msg">
+    <div class="error-box">
+      <h3>Não foi possível carregar os dados</h3>
+      <p>Verifique se o arquivo <code>dados.csv</code> está na mesma pasta que este <code>index.html</code> no repositório do GitHub.</p>
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="logo">
     <div class="logo-icon">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="1" y="8" width="3" height="7" rx="1" fill="white" opacity="0.5"/>
         <rect x="6" y="5" width="3" height="10" rx="1" fill="white" opacity="0.7"/>
         <rect x="11" y="1" width="3" height="14" rx="1" fill="white"/>
       </svg>
     </div>
-    BemolRun 2025
-    <span class="badge-live">Ao vivo</span>
+    BemolRun 2026
   </div>
   <div class="header-right">
-    <button class="export-btn" onclick="exportCSV()">⬇ Exportar CSV</button>
     <span class="updated-at" id="updatedAt"></span>
+    <div class="tab-switch" role="tablist">
+      <button class="tab-btn active" id="tab-overview" role="tab" aria-selected="true" onclick="switchTab('overview')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="7" width="2.5" height="6" rx="0.8" fill="currentColor" opacity="0.5"/><rect x="5" y="4" width="2.5" height="9" rx="0.8" fill="currentColor" opacity="0.7"/><rect x="9" y="1" width="2.5" height="12" rx="0.8" fill="currentColor"/></svg>
+        Visão geral
+      </button>
+      <button class="tab-btn" id="tab-camisetas" role="tab" aria-selected="false" onclick="switchTab('camisetas')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 1H9L11 3L14 2V6L11 5V13H3V5L0 6V2L3 3L5 1Z" stroke="currentColor" stroke-width="1" fill="none" stroke-linejoin="round"/></svg>
+        Camisetas
+      </button>
+    </div>
+    <button class="export-btn" onclick="exportCSV()">⬇ Exportar CSV</button>
   </div>
 </header>
 
 <main>
-  <h1 class="page-title">Painel de Vagas e Estoque</h1>
-  <p class="page-sub">Acompanhe em tempo real a ocupação dos lotes por categoria.</p>
 
-  <div class="metrics" id="metrics"></div>
+  <!-- VISÃO GERAL -->
+  <div class="page active" id="page-overview">
+    <h1 class="page-title">Painel de Vagas e Inscrições</h1>
+    <p class="page-sub" id="overviewSub">Carregando...</p>
 
-  <p class="section-title">Vagas por categoria</p>
-  <div class="categories" id="catGrid"></div>
+    <div class="metrics metrics-4" id="overviewMetrics"></div>
 
-  <div class="filter-row">
-    <span class="filter-label">Filtrar:</span>
-    <select id="filterCat" onchange="renderLotes()">
-      <option value="all">Todas as categorias</option>
-      <option value="5k">5 km</option>
-      <option value="10k">10 km</option>
-      <option value="21k">21 km</option>
-    </select>
-    <select id="filterStatus" onchange="renderLotes()">
-      <option value="all">Todos os status</option>
-      <option value="Ativo">Ativo</option>
-      <option value="Em breve">Em breve</option>
-      <option value="Esgotado">Esgotado</option>
-    </select>
-  </div>
+    <p class="section-title">Inscrições por cidade</p>
+    <div class="event-grid" id="eventGrid"></div>
 
-  <p class="section-title">Lotes de inscrição</p>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Lote</th>
-          <th>Categoria</th>
-          <th>Preço</th>
-          <th>Período</th>
-          <th>Ocupação</th>
-          <th>Inscritos</th>
-          <th>Livres</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="loteBody"></tbody>
-    </table>
-  </div>
+    <p class="section-title">Tipo de pagamento</p>
+    <div class="payment-card" id="paymentCard"></div>
 
-  <div class="chart-row">
-    <div class="chart-card">
-      <p class="section-title" style="margin-bottom:14px">Inscrições por dia (últimas 2 semanas)</p>
-      <div style="position:relative;height:220px;">
-        <canvas id="lineChart" role="img" aria-label="Gráfico de linha com evolução de inscrições por dia por categoria">Evolução diária de inscrições por categoria.</canvas>
+    <p class="section-title">Distribuição por modalidade</p>
+    <div class="mod-grid" id="modGrid"></div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <p class="section-title" style="margin-bottom:10px">Inscrições por dia</p>
+        <div class="legend-row" id="chartLegend"></div>
+        <div style="position:relative;height:220px;">
+          <canvas id="lineChart" role="img" aria-label="Evolução diária de inscrições por cidade">Gráfico de linha com inscrições diárias por cidade.</canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <p class="section-title" style="margin-bottom:10px">Distribuição por cidade</p>
+        <div class="legend-row" id="donutLegend"></div>
+        <div style="position:relative;height:180px;">
+          <canvas id="donutChart" role="img" aria-label="Distribuição percentual de inscritos por cidade">Distribuição por cidade.</canvas>
+        </div>
       </div>
     </div>
-    <div class="chart-card">
-      <p class="section-title" style="margin-bottom:10px">Distribuição por categoria</p>
-      <div class="donut-legend" id="donutLegend"></div>
-      <div style="position:relative;height:170px;">
-        <canvas id="donutChart" role="img" aria-label="Gráfico de rosca com distribuição de inscritos por categoria">5km: 43%, 10km: 37%, 21km: 20%.</canvas>
-      </div>
+
+    <div class="filter-row">
+      <span class="filter-label">Filtrar:</span>
+      <select id="filterEvento" onchange="renderTable()">
+        <option value="all">Todas as cidades</option>
+      </select>
+      <select id="filterModal" onchange="renderTable()">
+        <option value="all">Todas as modalidades</option>
+      </select>
+    </div>
+
+    <p class="section-title">Detalhamento por cidade e modalidade</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Cidade</th><th>Modalidade</th><th>Geral</th><th>Colaborador</th><th>Total inscritos</th><th>% do total</th><th>Arrecadado (est.)</th></tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
     </div>
   </div>
-</main>
 
-<footer>
-  BemolRun 2025 &mdash; Painel administrativo de vagas &mdash; Dados atualizados automaticamente
-</footer>
+  <!-- CAMISETAS -->
+  <div class="page" id="page-camisetas">
+    <h1 class="page-title">Camisetas e Gênero</h1>
+    <p class="page-sub" id="shirtSub">Carregando...</p>
 
-<script>
-  // ── DATA ──────────────────────────────────────────────────────────────────
-  const cats = [
-    { id: '5k',  name: '5 km',  color: '#378ADD', total: 800,  used: 612 },
-    { id: '10k', name: '10 km', color: '#1D9E75', total: 600,  used: 527 },
-    { id: '21k', name: '21 km', color: '#D85A30', total: 400,  used: 281 },
-  ];
+    <div class="metrics metrics-4-shirt" id="shirtMetrics"></div>
 
-  const lotes = [
-    { id:1,  name:'Lote 1', cat:'5k',  preco:'R$ 79,90',  inicio:'01/03', fim:'31/03', total:250, used:250, status:'Esgotado' },
-    { id:2,  name:'Lote 2', cat:'5k',  preco:'R$ 99,90',  inicio:'01/04', fim:'30/04', total:300, used:300, status:'Esgotado' },
-    { id:3,  name:'Lote 3', cat:'5k',  preco:'R$ 119,90', inicio:'01/05', fim:'25/05', total:250, used:62,  status:'Ativo'    },
-    { id:4,  name:'Lote 1', cat:'10k', preco:'R$ 99,90',  inicio:'01/03', fim:'31/03', total:200, used:200, status:'Esgotado' },
-    { id:5,  name:'Lote 2', cat:'10k', preco:'R$ 129,90', inicio:'01/04', fim:'30/04', total:200, used:200, status:'Esgotado' },
-    { id:6,  name:'Lote 3', cat:'10k', preco:'R$ 149,90', inicio:'01/05', fim:'25/05', total:200, used:127, status:'Ativo'    },
-    { id:7,  name:'Lote 1', cat:'21k', preco:'R$ 149,90', inicio:'01/03', fim:'31/03', total:150, used:150, status:'Esgotado' },
-    { id:8,  name:'Lote 2', cat:'21k', preco:'R$ 189,90', inicio:'01/04', fim:'30/04', total:150, used:131, status:'Ativo'    },
-    { id:9,  name:'Lote 3', cat:'21k', preco:'R$ 219,90', inicio:'01/06', fim:'30/06', total:100, used:0,   status:'Em breve' },
-  ];
-
-  const catLabel = { '5k': '5 km', '10k': '10 km', '21k': '21 km' };
-
-  // ── HELPERS ───────────────────────────────────────────────────────────────
-  function pct(used, total) { return Math.round(used / total * 100); }
-
-  function freeColor(p) {
-    if (p >= 90) return '#E24B4A';
-    if (p >= 70) return '#EF9F27';
-    return '#1D9E75';
-  }
-
-  // ── METRICS ───────────────────────────────────────────────────────────────
-  function renderMetrics() {
-    const totalV = cats.reduce((a, c) => a + c.total, 0);
-    const totalU = cats.reduce((a, c) => a + c.used, 0);
-    const totalL = totalV - totalU;
-    const p = pct(totalU, totalV);
-    document.getElementById('metrics').innerHTML = `
-      <div class="metric">
-        <div class="metric-label">Total de vagas</div>
-        <div class="metric-value">${totalV.toLocaleString('pt-BR')}</div>
-        <div class="metric-sub">todas as categorias</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Inscritos</div>
-        <div class="metric-value">${totalU.toLocaleString('pt-BR')}</div>
-        <div class="metric-sub">${p}% do total</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Vagas disponíveis</div>
-        <div class="metric-value" style="color:${freeColor(p)}">${totalL.toLocaleString('pt-BR')}</div>
-        <div class="metric-sub">${100 - p}% restante</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Lotes ativos</div>
-        <div class="metric-value">${lotes.filter(l => l.status === 'Ativo').length}</div>
-        <div class="metric-sub">${lotes.filter(l => l.status === 'Em breve').length} em breve</div>
-      </div>
-    `;
-  }
-
-  // ── CATEGORIES ────────────────────────────────────────────────────────────
-  function renderCats() {
-    document.getElementById('catGrid').innerHTML = cats.map(c => {
-      const p = pct(c.used, c.total);
-      return `
-        <div class="cat-card">
-          <div class="cat-header">
-            <span class="cat-name">${c.name}</span>
-            <span class="cat-pct" style="color:${c.color}">${p}% ocupado</span>
+    <p class="section-title">Gênero — distribuição de tamanhos</p>
+    <div class="gender-split-row">
+      <div class="gender-card">
+        <div class="gender-hero">
+          <div>
+            <div class="gender-label">Feminino</div>
+            <div class="gender-count" style="color:#D85A30" id="countF">—</div>
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill" style="width:${p}%;background:${c.color}"></div>
-          </div>
-          <div class="cat-nums">
-            <span class="num-used">${c.used.toLocaleString('pt-BR')} inscritos</span>
-            <span class="num-total">de ${c.total.toLocaleString('pt-BR')}</span>
-            <span class="num-free" style="color:${freeColor(p)}">${(c.total - c.used).toLocaleString('pt-BR')} livres</span>
+          <div style="margin-left:auto;text-align:right">
+            <div class="gender-label">Participação</div>
+            <div style="color:#D85A30;font-size:20px;font-weight:600" id="pctF">—</div>
           </div>
         </div>
-      `;
+        <div style="height:5px;background:var(--bg-secondary);border-radius:4px;overflow:hidden;margin-bottom:18px">
+          <div id="barF" style="height:100%;background:#D85A30;border-radius:4px;width:0%"></div>
+        </div>
+        <p class="section-title" style="margin-bottom:10px">Tamanhos</p>
+        <div class="size-breakdown" id="sizeF"></div>
+      </div>
+      <div class="gender-card">
+        <div class="gender-hero">
+          <div>
+            <div class="gender-label">Masculino</div>
+            <div class="gender-count" style="color:#378ADD" id="countM">—</div>
+          </div>
+          <div style="margin-left:auto;text-align:right">
+            <div class="gender-label">Participação</div>
+            <div style="color:#378ADD;font-size:20px;font-weight:600" id="pctM">—</div>
+          </div>
+        </div>
+        <div style="height:5px;background:var(--bg-secondary);border-radius:4px;overflow:hidden;margin-bottom:18px">
+          <div id="barM" style="height:100%;background:#378ADD;border-radius:4px;width:0%"></div>
+        </div>
+        <p class="section-title" style="margin-bottom:10px">Tamanhos</p>
+        <div class="size-breakdown" id="sizeM"></div>
+      </div>
+    </div>
+
+    <p class="section-title">Tamanhos — visão geral</p>
+    <div class="shirt-charts-row">
+      <div class="chart-card">
+        <p class="section-title" style="margin-bottom:10px">Total por tamanho</p>
+        <div style="position:relative;height:240px;">
+          <canvas id="shirtBarChart" role="img" aria-label="Total de camisetas por tamanho">Total por tamanho.</canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <p class="section-title" style="margin-bottom:10px">Tamanho por gênero</p>
+        <div class="legend-row" id="shirtGroupedLegend"></div>
+        <div style="position:relative;height:220px;">
+          <canvas id="shirtGroupedChart" role="img" aria-label="Tamanhos por gênero">Comparativo por gênero.</canvas>
+        </div>
+      </div>
+    </div>
+
+    <p class="section-title">Tamanhos por cidade</p>
+    <div class="city-shirt-grid" id="cityShirtGrid"></div>
+
+    <p class="section-title">Tabela completa — tamanho por cidade e gênero</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Cidade</th><th>Gênero</th><th>PP</th><th>P</th><th>M</th><th>G</th><th>GG</th><th>XG</th><th>Total</th></tr></thead>
+        <tbody id="shirtTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+<footer>BemolRun 2026 &mdash; Painel administrativo &mdash; Fonte: SAP via Databricks</footer>
+
+<script>
+// ── CONSTANTS ─────────────────────────────────────────────────────────────
+const COLORS = ['#378ADD','#1D9E75','#D85A30','#8B5CF6','#EF9F27','#E24B4A'];
+const SIZES  = ['PP','P','M','G','GG','XG'];
+const fmt    = n => Number(n).toLocaleString('pt-BR');
+const pct    = (a, b) => b ? Math.round(a / b * 100) : 0;
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let DATA = null; // processed data object, populated after CSV load
+
+// ── CSV LOAD ──────────────────────────────────────────────────────────────
+Papa.parse('dados.csv', {
+  download: true,
+  header: true,
+  skipEmptyLines: true,
+  encoding: 'UTF-8',
+  complete: results => {
+    if (!results.data || results.data.length === 0) { showError(); return; }
+    try {
+      DATA = processCSV(results.data);
+      boot();
+    } catch(e) {
+      console.error(e);
+      showError();
+    }
+  },
+  error: () => showError(),
+});
+
+function showError() {
+  document.getElementById('loading-spinner').style.display = 'none';
+  document.getElementById('error-msg').style.display = 'flex';
+}
+
+// ── PROCESS CSV ───────────────────────────────────────────────────────────
+function processCSV(rows) {
+  // Normalise rows: only INSCRITO status, trim strings
+  const data = rows
+    .filter(r => (r.STATUS_PAGAMENTO || '').trim().toUpperCase() === 'INSCRITO')
+    .map(r => ({
+      data:     (r.DATA || '').trim(),
+      cidade:   (r.EVENTO_ID || '').trim(),
+      modal:    (r.MODALIDADE || '').trim().toUpperCase(),
+      genero:   (r.GENERO || '').trim().toUpperCase(),
+      tamanho:  (r.TAMANHO || '').trim().toUpperCase(),
+      pagto:    (r.TIPO_PAGAMENTO || '').trim().toUpperCase(),
+      categoria:(r.CATEGORIA || '').trim().toUpperCase(),
+      valor:    parseFloat((r.VALOR || '0').toString().replace(',','.')),
+    }));
+
+  const total = data.length;
+
+  // Cities (preserve insertion order of first appearance, sorted by count desc)
+  const cidadeSet = {};
+  data.forEach(r => { cidadeSet[r.cidade] = (cidadeSet[r.cidade] || 0) + 1; });
+  const cidades = Object.keys(cidadeSet).sort((a,b) => cidadeSet[b] - cidadeSet[a]);
+
+  // Modalidades
+  const modalSet = {};
+  data.forEach(r => { modalSet[r.modal] = (modalSet[r.modal] || 0) + 1; });
+  const modais = Object.keys(modalSet).sort((a,b) => modalSet[b] - modalSet[a]);
+
+  // Color map for cities
+  const colorMap = {};
+  cidades.forEach((c,i) => colorMap[c] = COLORS[i % COLORS.length]);
+
+  // Events: per city stats
+  const events = cidades.map(cidade => {
+    const rows = data.filter(r => r.cidade === cidade);
+    const inscritos = rows.length;
+    const geral  = rows.filter(r => r.categoria === 'GERAL').length;
+    const colab  = rows.filter(r => r.categoria === 'COLAB').length;
+    const valor  = rows.reduce((s,r) => s + r.valor, 0);
+    const byMod  = {};
+    modais.forEach(m => byMod[m] = rows.filter(r => r.modal === m).length);
+    return { id: cidade, inscritos, geral, colab, valor, byMod, color: colorMap[cidade] };
+  });
+
+  // Payment
+  const pagtoMap = {};
+  data.forEach(r => { pagtoMap[r.pagto] = (pagtoMap[r.pagto] || 0) + 1; });
+
+  // Daily data per city
+  const dateSet = {};
+  data.forEach(r => { dateSet[r.data] = true; });
+  const dates = Object.keys(dateSet).sort();
+  const daily = {};
+  cidades.forEach(c => {
+    daily[c] = dates.map(d => data.filter(r => r.cidade === c && r.data === d).length);
+  });
+
+  // Gender
+  const genderMap = {};
+  data.forEach(r => { genderMap[r.genero] = (genderMap[r.genero] || 0) + 1; });
+
+  // Sizes per gender
+  const sizeByGender = {};
+  ['F','M'].forEach(g => {
+    sizeByGender[g] = {};
+    SIZES.forEach(s => {
+      sizeByGender[g][s] = data.filter(r => r.genero === g && r.tamanho === s).length;
+    });
+  });
+
+  // Sizes per city+gender
+  const sizeByCityGender = {};
+  cidades.forEach(c => {
+    sizeByCityGender[c] = {};
+    ['F','M'].forEach(g => {
+      sizeByCityGender[c][g] = {};
+      SIZES.forEach(s => {
+        sizeByCityGender[c][g][s] = data.filter(r => r.cidade === c && r.genero === g && r.tamanho === s).length;
+      });
+    });
+  });
+
+  return { total, cidades, modais, colorMap, events, pagtoMap, dates, daily, genderMap, sizeByGender, sizeByCityGender };
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────
+let lineChartInst = null, donutChartInst = null, shirtBarInst = null, shirtGroupedInst = null;
+
+function boot() {
+  document.getElementById('loading').style.display = 'none';
+  populateFilters();
+  renderOverview();
+  renderShirtPage();
+  document.getElementById('updatedAt').textContent =
+    'Atualizado às ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ── TAB SWITCH ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+  document.getElementById('page-'+tab).classList.add('active');
+  const btn = document.getElementById('tab-'+tab);
+  btn.classList.add('active'); btn.setAttribute('aria-selected','true');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────
+function populateFilters() {
+  const ec = document.getElementById('filterEvento');
+  const em = document.getElementById('filterModal');
+  DATA.cidades.forEach(c => { const o = document.createElement('option'); o.value=c; o.textContent=c; ec.appendChild(o); });
+  DATA.modais.forEach(m => { const o = document.createElement('option'); o.value=m; o.textContent=m+' km'.replace('KM',' km'); em.appendChild(o); });
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────────────────────
+function renderOverview() {
+  const { total, events, modais, cidades, colorMap, pagtoMap, dates, daily } = DATA;
+
+  // Subtitle
+  document.getElementById('overviewSub').textContent =
+    `Dados extraídos do SAP via Databricks — ${fmt(total)} inscrições confirmadas`;
+
+  // Metrics
+  const totalValor = events.reduce((s,e) => s+e.valor, 0);
+  const metricRows = [
+    { label:'Total inscritos', value: fmt(total), sub: `${cidades.length} cidades` },
+    { label:'Arrecadado', value: 'R$ '+Math.round(totalValor/1000)+'k', sub: 'R$ '+totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) },
+    ...modais.map(m => {
+      const n = events.reduce((s,e) => s+(e.byMod[m]||0),0);
+      return { label: m.replace('KM',' km'), value: fmt(n), sub: pct(n,total)+'% das inscrições' };
+    })
+  ];
+  document.getElementById('overviewMetrics').innerHTML = metricRows.map(m =>
+    `<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-value" style="font-size:${m.value.length>6?'20px':'26px'}">${m.value}</div><div class="metric-sub">${m.sub}</div></div>`
+  ).join('');
+
+  // Event cards
+  document.getElementById('eventGrid').style.gridTemplateColumns = `repeat(${Math.min(cidades.length,4)},minmax(0,1fr))`;
+  document.getElementById('eventGrid').innerHTML = events.map(e => {
+    const pctTotal = pct(e.inscritos, total);
+    const modRows = modais.map(m =>
+      `<div class="event-row"><span class="event-row-label">${m.replace('KM',' km')}</span><span class="event-row-val">${fmt(e.byMod[m]||0)} <span style="color:var(--text-tertiary);font-weight:400;font-size:12px">(${pct(e.byMod[m]||0,e.inscritos)}%)</span></span></div>`
+    ).join('');
+    return `<div class="event-card">
+      <div class="event-name"><span class="event-dot" style="background:${e.color}"></span>${e.id}</div>
+      <div class="event-rows">
+        <div class="event-row"><span class="event-row-label">Inscritos</span><span class="event-row-val">${fmt(e.inscritos)}</span></div>
+        ${modRows}
+        <div class="event-row"><span class="event-row-label">Colaboradores</span><span class="event-row-val">${fmt(e.colab)}</span></div>
+        <div class="event-row"><span class="event-row-label">Arrecadado</span><span class="event-row-val" style="color:${e.color}">R$ ${Math.round(e.valor/1000)}k</span></div>
+      </div>
+      <div class="mini-bar">
+        <div class="mini-track"><div class="mini-fill" style="width:${pctTotal}%;background:${e.color}"></div></div>
+        <span class="mini-pct">${pctTotal}% do total</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Payment card
+  const pagtoEntries = Object.entries(pagtoMap).sort((a,b)=>b[1]-a[1]);
+  const payColors = ['#378ADD','#1D9E75','#EF9F27','#D85A30'];
+  document.getElementById('paymentCard').innerHTML = pagtoEntries.map(([ label, count ], i) => {
+    const p = pct(count, total);
+    const divider = i < pagtoEntries.length-1 ? `<div class="pay-divider"></div>` : '';
+    const displayLabel = label === 'CB' ? 'Cartão / Boleto' : label === 'PIX' ? 'PIX' : label;
+    return `<div class="pay-row">
+      <span class="pay-label">${displayLabel}</span>
+      <div class="pay-bar-wrap">
+        <div class="pay-bar-track"><div class="pay-bar-fill" style="width:${p}%;background:${payColors[i%payColors.length]}"></div></div>
+        <span class="pay-val">${fmt(count)} <span style="color:var(--text-tertiary);font-weight:400">(${p}%)</span></span>
+      </div>
+    </div>${divider}`;
+  }).join('');
+
+  // Modality cards
+  document.getElementById('modGrid').innerHTML = modais.map((m,i) => {
+    const n = events.reduce((s,e) => s+(e.byMod[m]||0),0);
+    const p = pct(n, total);
+    return `<div class="mod-card">
+      <div class="mod-header"><span class="mod-name">${m.replace('KM',' km')}</span><span class="mod-pct" style="color:${COLORS[i]}">${p}% das inscrições</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${p}%;background:${COLORS[i]}"></div></div>
+      <div class="mod-nums"><span class="num-used">${fmt(n)} inscritos</span><span class="num-total">de ${fmt(total)} total</span></div>
+    </div>`;
+  }).join('');
+
+  // Charts
+  const isDark = matchMedia('(prefers-color-scheme:dark)').matches;
+  const gridC  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const textC  = isDark ? '#68685e' : '#9a9a96';
+
+  document.getElementById('chartLegend').innerHTML = cidades.map(c =>
+    `<span class="legend-item"><span class="legend-dot" style="background:${colorMap[c]}"></span>${c}</span>`
+  ).join('');
+
+  const dateLabels = dates.map(d => d.slice(5).replace('-','/'));
+  if (lineChartInst) lineChartInst.destroy();
+  lineChartInst = new Chart(document.getElementById('lineChart'), {
+    type:'line',
+    data:{ labels: dateLabels, datasets: cidades.map(c => ({ label:c, data:daily[c], borderColor:colorMap[c], backgroundColor:colorMap[c]+'11', tension:0.4, pointRadius:3, fill:true })) },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{mode:'index',intersect:false} }, scales:{ x:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}}, y:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}} } }
+  });
+
+  const donutData   = events.map(e => e.inscritos);
+  const donutColors = events.map(e => e.color);
+  document.getElementById('donutLegend').innerHTML = events.map(e =>
+    `<span class="legend-item"><span class="legend-dot" style="background:${e.color}"></span>${e.id} ${pct(e.inscritos,total)}%</span>`
+  ).join('');
+  if (donutChartInst) donutChartInst.destroy();
+  donutChartInst = new Chart(document.getElementById('donutChart'), {
+    type:'doughnut',
+    data:{ labels:cidades, datasets:[{data:donutData, backgroundColor:donutColors, borderWidth:0, hoverOffset:4}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, cutout:'65%' }
+  });
+
+  renderTable();
+}
+
+function renderTable() {
+  const fe = document.getElementById('filterEvento').value;
+  const fm = document.getElementById('filterModal').value;
+  const { events, modais, total, colorMap } = DATA;
+
+  let rows = [];
+  events.forEach(e => {
+    if (fe !== 'all' && e.id !== fe) return;
+    modais.forEach(m => {
+      if (fm !== 'all' && fm !== m) return;
+      const t = e.byMod[m] || 0;
+      const g = Math.round(t * (e.geral / e.inscritos));
+      const c = Math.round(t * (e.colab / e.inscritos));
+      const v = e.valor * (t / e.inscritos);
+      const p = pct(t, total);
+      rows.push(`<tr>
+        <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${e.color};flex-shrink:0"></span>${e.id}</span></td>
+        <td>${m.replace('KM',' km')}</td>
+        <td>${fmt(g)}</td><td>${fmt(c)}</td>
+        <td style="font-weight:600">${fmt(t)}</td>
+        <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${Math.min(p*3,100)}%;background:${e.color}"></div></div><span class="bar-pct">${p}%</span></div></td>
+        <td style="color:${e.color};font-weight:500">R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      </tr>`);
+    });
+  });
+  document.getElementById('tableBody').innerHTML = rows.join('') ||
+    `<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:28px">Nenhum resultado encontrado.</td></tr>`;
+}
+
+// ── SHIRT PAGE ────────────────────────────────────────────────────────────
+function renderShirtPage() {
+  const { total, genderMap, sizeByGender, sizeByCityGender, cidades, colorMap } = DATA;
+  const F = genderMap['F'] || 0;
+  const M = genderMap['M'] || 0;
+
+  document.getElementById('shirtSub').textContent =
+    `Distribuição de tamanhos e gênero entre todos os inscritos — ${fmt(total)} atletas`;
+
+  // Top size
+  const totalBySize = {};
+  SIZES.forEach(s => totalBySize[s] = (sizeByGender['F'][s]||0) + (sizeByGender['M'][s]||0));
+  const topSize = SIZES.reduce((a,b) => totalBySize[a]>=totalBySize[b]?a:b);
+
+  document.getElementById('shirtMetrics').innerHTML = [
+    { label:'Feminino',                    value: fmt(F), sub: pct(F,total)+'% dos inscritos' },
+    { label:'Masculino',                   value: fmt(M), sub: pct(M,total)+'% dos inscritos' },
+    { label:'Tamanho mais pedido',         value: topSize, sub: fmt(totalBySize[topSize])+' unidades ('+pct(totalBySize[topSize],total)+'%)' },
+    { label:'Total de camisetas distribuídas', value: fmt(total), sub: '1 por inscrito' },
+  ].map(m => `<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-value">${m.value}</div><div class="metric-sub">${m.sub}</div></div>`).join('');
+
+  // Gender heroes
+  document.getElementById('countF').textContent = fmt(F);
+  document.getElementById('pctF').textContent   = pct(F,total)+'%';
+  document.getElementById('barF').style.width   = pct(F,total)+'%';
+  document.getElementById('countM').textContent = fmt(M);
+  document.getElementById('pctM').textContent   = pct(M,total)+'%';
+  document.getElementById('barM').style.width   = pct(M,total)+'%';
+
+  // Size breakdown per gender
+  function buildSizeBreakdown(containerId, data, color) {
+    const max = Math.max(...Object.values(data));
+    const tot = Object.values(data).reduce((a,b)=>a+b,0);
+    document.getElementById(containerId).innerHTML = SIZES.map(s => {
+      const n = data[s]||0;
+      return `<div class="size-row">
+        <span class="size-tag">${s}</span>
+        <div class="size-bar-track"><div class="size-bar-fill" style="width:${max?Math.round(n/max*100):0}%;background:${color}"></div></div>
+        <span class="size-count">${fmt(n)}</span>
+        <span class="size-pct">${pct(n,tot)}%</span>
+      </div>`;
     }).join('');
   }
+  buildSizeBreakdown('sizeF', sizeByGender['F']||{}, '#D85A30');
+  buildSizeBreakdown('sizeM', sizeByGender['M']||{}, '#378ADD');
 
-  // ── LOTES TABLE ───────────────────────────────────────────────────────────
-  function renderLotes() {
-    const fc = document.getElementById('filterCat').value;
-    const fs = document.getElementById('filterStatus').value;
-    const filtered = lotes.filter(l =>
-      (fc === 'all' || l.cat === fc) &&
-      (fs === 'all' || l.status === fs)
-    );
-    const statusClass = { 'Ativo': 'status-active', 'Em breve': 'status-soon', 'Esgotado': 'status-ended' };
-    document.getElementById('loteBody').innerHTML = filtered.map(l => {
-      const p = pct(l.used, l.total);
-      const col = cats.find(c => c.id === l.cat)?.color || '#888';
-      return `
-        <tr>
-          <td style="font-weight:600">${l.name}</td>
-          <td>${catLabel[l.cat]}</td>
-          <td>${l.preco}</td>
-          <td style="color:var(--text-secondary)">${l.inicio} – ${l.fim}</td>
-          <td>
-            <div class="mini-bar">
-              <div class="mini-track"><div class="mini-fill" style="width:${p}%;background:${col}"></div></div>
-              <span class="mini-pct">${p}%</span>
-            </div>
-          </td>
-          <td style="font-weight:500">${l.used.toLocaleString('pt-BR')}</td>
-          <td style="color:${freeColor(p)};font-weight:500">${(l.total - l.used).toLocaleString('pt-BR')}</td>
-          <td><span class="status-pill ${statusClass[l.status] || ''}">${l.status}</span></td>
-        </tr>
-      `;
-    }).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--text-tertiary);padding:28px">Nenhum lote encontrado para os filtros selecionados.</td></tr>`;
-  }
+  // Shirt charts
+  const isDark = matchMedia('(prefers-color-scheme:dark)').matches;
+  const gridC = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const textC = isDark ? '#68685e' : '#9a9a96';
 
-  // ── CHARTS ────────────────────────────────────────────────────────────────
-  function renderCharts() {
-    const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
-    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-    const textColor = isDark ? '#68685e' : '#9a9a96';
+  if (shirtBarInst) shirtBarInst.destroy();
+  shirtBarInst = new Chart(document.getElementById('shirtBarChart'), {
+    type:'bar',
+    data:{ labels:SIZES, datasets:[{ label:'Total', data:SIZES.map(s=>totalBySize[s]||0), backgroundColor:['#E1A8C4','#C7A8E1','#A8C7E1','#A8E1C7','#E1C7A8','#E1A8A8'], borderWidth:0, borderRadius:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.raw)} camisetas`}}}, scales:{ x:{grid:{color:gridC},ticks:{color:textC,font:{size:12}}}, y:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}} } }
+  });
 
-    const days = ['21/04','22/04','23/04','24/04','25/04','26/04','27/04','28/04','29/04','30/04','01/05','02/05','03/05','04/05'];
-    new Chart(document.getElementById('lineChart'), {
-      type: 'line',
-      data: {
-        labels: days,
-        datasets: [
-          { label:'5 km',  data:[18,24,20,31,27,35,22,40,38,45,55,48,60,62], borderColor:'#378ADD', backgroundColor:'rgba(55,138,221,0.07)', tension:0.4, pointRadius:3, fill:true },
-          { label:'10 km', data:[12,18,15,20,18,25,30,28,35,40,45,50,55,127],borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.07)', tension:0.4, pointRadius:3, fill:true },
-          { label:'21 km', data:[8,10,12,15,18,14,20,25,22,30,28,35,40,131], borderColor:'#D85A30', backgroundColor:'rgba(216,90,48,0.05)',  tension:0.4, pointRadius:3, fill:true },
-        ]
-      },
-      options: {
-        responsive:true, maintainAspectRatio:false,
-        plugins:{
-          legend:{display:false},
-          tooltip:{ mode:'index', intersect:false }
-        },
-        scales:{
-          x:{ grid:{color:gridColor}, ticks:{color:textColor, font:{size:11}, maxRotation:45} },
-          y:{ grid:{color:gridColor}, ticks:{color:textColor, font:{size:11}} }
-        }
-      }
+  document.getElementById('shirtGroupedLegend').innerHTML =
+    `<span class="legend-item"><span class="legend-dot" style="background:#D85A30"></span>Feminino</span>
+     <span class="legend-item"><span class="legend-dot" style="background:#378ADD"></span>Masculino</span>`;
+
+  if (shirtGroupedInst) shirtGroupedInst.destroy();
+  shirtGroupedInst = new Chart(document.getElementById('shirtGroupedChart'), {
+    type:'bar',
+    data:{ labels:SIZES, datasets:[
+      { label:'Feminino',  data:SIZES.map(s=>sizeByGender['F'][s]||0), backgroundColor:'#D85A30', borderWidth:0, borderRadius:3 },
+      { label:'Masculino', data:SIZES.map(s=>sizeByGender['M'][s]||0), backgroundColor:'#378ADD', borderWidth:0, borderRadius:3 },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{mode:'index',intersect:false}}, scales:{ x:{grid:{color:gridC},ticks:{color:textC,font:{size:12}}}, y:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}} } }
+  });
+
+  // City shirt cards
+  document.getElementById('cityShirtGrid').style.gridTemplateColumns = `repeat(${Math.min(cidades.length,4)},minmax(0,1fr))`;
+  document.getElementById('cityShirtGrid').innerHTML = cidades.map(c => {
+    const d = sizeByCityGender[c] || {};
+    const max = Math.max(...SIZES.map(s => (d['F']?.[s]||0)+(d['M']?.[s]||0)));
+    return `<div class="city-shirt-card">
+      <div class="city-shirt-name"><span class="event-dot" style="background:${colorMap[c]}"></span>${c}</div>
+      <div class="city-size-list">${SIZES.map(s => {
+        const n = (d['F']?.[s]||0)+(d['M']?.[s]||0);
+        return `<div class="city-size-row">
+          <span class="city-size-tag">${s}</span>
+          <div class="city-size-bar"><div class="city-size-fill" style="width:${max?Math.round(n/max*100):0}%;background:${colorMap[c]}"></div></div>
+          <span class="city-size-n">${n}</span>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('');
+
+  // Shirt table
+  const tRows = [];
+  cidades.forEach(c => {
+    const d = sizeByCityGender[c] || {};
+    ['F','M'].forEach(g => {
+      const gLabel = g==='F'?'Feminino':'Masculino';
+      const gColor = g==='F'?'#D85A30':'#378ADD';
+      const tot = SIZES.reduce((a,s)=>a+(d[g]?.[s]||0),0);
+      tRows.push(`<tr>
+        <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${colorMap[c]};flex-shrink:0"></span>${c}</span></td>
+        <td style="color:${gColor};font-weight:500">${gLabel}</td>
+        ${SIZES.map(s=>`<td>${fmt(d[g]?.[s]||0)}</td>`).join('')}
+        <td style="font-weight:600">${fmt(tot)}</td>
+      </tr>`);
     });
+  });
+  document.getElementById('shirtTableBody').innerHTML = tRows.join('');
+}
 
-    const donutData   = [612, 527, 281];
-    const donutColors = ['#378ADD','#1D9E75','#D85A30'];
-    const donutLabels = ['5 km','10 km','21 km'];
-    const total = donutData.reduce((a,b) => a+b, 0);
-
-    document.getElementById('donutLegend').innerHTML = donutLabels.map((l,i) => `
-      <span class="legend-item">
-        <span class="legend-dot" style="background:${donutColors[i]}"></span>
-        ${l} — ${Math.round(donutData[i]/total*100)}%
-      </span>
-    `).join('');
-
-    new Chart(document.getElementById('donutChart'), {
-      type:'doughnut',
-      data:{ labels:donutLabels, datasets:[{ data:donutData, backgroundColor:donutColors, borderWidth:0, hoverOffset:4 }] },
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, cutout:'65%' }
+// ── EXPORT ────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const page = document.querySelector('.page.active').id;
+  let rows, filename;
+  if (page === 'page-camisetas') {
+    const { cidades, sizeByCityGender } = DATA;
+    rows = [['Cidade','Gênero',...SIZES,'Total']];
+    cidades.forEach(c => {
+      const d = sizeByCityGender[c]||{};
+      ['F','M'].forEach(g => {
+        const tot = SIZES.reduce((a,s)=>a+(d[g]?.[s]||0),0);
+        rows.push([c, g==='F'?'Feminino':'Masculino', ...SIZES.map(s=>d[g]?.[s]||0), tot]);
+      });
     });
+    filename = 'bemolrun2026-camisetas.csv';
+  } else {
+    const { events, modais, total } = DATA;
+    rows = [['Cidade','Modalidade','Geral','Colaborador','Total','% do total','Arrecadado']];
+    events.forEach(e => modais.forEach(m => {
+      const t = e.byMod[m]||0;
+      rows.push([e.id, m.replace('KM',' km'), Math.round(t*(e.geral/e.inscritos)), Math.round(t*(e.colab/e.inscritos)), t, pct(t,total)+'%', 'R$ '+(e.valor*(t/e.inscritos)).toFixed(2)]);
+    }));
+    filename = 'bemolrun2026-vagas.csv';
   }
-
-  // ── EXPORT CSV ────────────────────────────────────────────────────────────
-  function exportCSV() {
-    const rows = [['Lote','Categoria','Preco','Inicio','Fim','Total','Inscritos','Livres','Status']];
-    lotes.forEach(l => rows.push([l.name, catLabel[l.cat], l.preco, l.inicio, l.fim, l.total, l.used, l.total - l.used, l.status]));
-    const csv = rows.map(r => r.join(',')).join('\n');
-    const a = document.createElement('a');
-    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-    a.download = 'bemolrun-vagas.csv';
-    a.click();
-  }
-
-  // ── TIMESTAMP ─────────────────────────────────────────────────────────────
-  function updateTimestamp() {
-    const now = new Date();
-    document.getElementById('updatedAt').textContent =
-      'Atualizado às ' + now.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
-  }
-
-  // ── INIT ──────────────────────────────────────────────────────────────────
-  renderMetrics();
-  renderCats();
-  renderLotes();
-  renderCharts();
-  updateTimestamp();
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));
+  a.download = filename;
+  a.click();
+}
 </script>
 </body>
 </html>
