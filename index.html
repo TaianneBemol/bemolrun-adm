@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BemolRun 2026 — Painel de Vagas</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -24,46 +24,38 @@
     }
     body { font-family: var(--font); background: var(--bg-tertiary); color: var(--text-primary); min-height: 100vh; }
 
-    /* ── LOADING ── */
-    #loading {
-      position: fixed; inset: 0; background: var(--bg-tertiary);
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 16px; z-index: 100;
-    }
-    .spinner {
-      width: 32px; height: 32px; border: 2.5px solid var(--border-mid);
-      border-top-color: var(--text-primary); border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
+    /* LOADING */
+    #loading { position: fixed; inset: 0; background: var(--bg-tertiary); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; z-index: 100; }
+    .spinner { width: 32px; height: 32px; border: 2.5px solid var(--border-mid); border-top-color: var(--text-primary); border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .loading-text { font-size: 14px; color: var(--text-secondary); }
     #error-msg { display: none; flex-direction: column; align-items: center; gap: 10px; }
-    .error-box { background: #FCEBEB; border: 0.5px solid #F09595; border-radius: var(--radius-lg); padding: 20px 28px; text-align: center; max-width: 440px; }
-    .error-box h3 { color: #A32D2D; font-size: 15px; margin-bottom: 6px; }
-    .error-box p { color: #791F1F; font-size: 13px; line-height: 1.6; }
+    .error-box { background: #FCEBEB; border: 0.5px solid #F09595; border-radius: var(--radius-lg); padding: 24px 32px; text-align: center; max-width: 500px; }
+    .error-box h3 { color: #A32D2D; font-size: 15px; margin-bottom: 8px; }
+    .error-box p { color: #791F1F; font-size: 13px; line-height: 1.7; }
+    .error-box code { background: rgba(0,0,0,0.08); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
-    /* ── HEADER ── */
-    header {
-      background: var(--bg-primary); border-bottom: 0.5px solid var(--border-mid);
-      padding: 0 2rem; display: flex; align-items: center; justify-content: space-between;
-      height: 56px; position: sticky; top: 0; z-index: 10;
-    }
+    /* HEADER */
+    header { background: var(--bg-primary); border-bottom: 0.5px solid var(--border-mid); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 10; }
     .logo { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em; }
     .logo-icon { width: 28px; height: 28px; background: #1a1a18; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
     @media (prefers-color-scheme: dark) { .logo-icon { background: #e8e6df; } }
     .header-right { display: flex; align-items: center; gap: 12px; }
     .updated-at { font-size: 12px; color: var(--text-tertiary); }
-
-    /* ── TAB SWITCH ── */
     .tab-switch { display: flex; align-items: center; background: var(--bg-secondary); border: 0.5px solid var(--border-mid); border-radius: var(--radius-md); padding: 3px; gap: 2px; }
     .tab-btn { font-size: 13px; font-family: var(--font); font-weight: 500; padding: 5px 14px; border-radius: 6px; border: none; cursor: pointer; background: transparent; color: var(--text-secondary); transition: background 0.15s, color 0.15s; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
-    .tab-btn svg { flex-shrink: 0; }
     .tab-btn:hover { color: var(--text-primary); }
     .tab-btn.active { background: var(--bg-primary); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
     .export-btn { font-size: 13px; padding: 6px 14px; border-radius: var(--radius-md); border: 0.5px solid var(--border-mid); background: var(--bg-primary); color: var(--text-primary); cursor: pointer; font-family: var(--font); }
     .export-btn:hover { background: var(--bg-secondary); }
 
-    /* ── LAYOUT ── */
+    /* SOURCE BADGE */
+    .source-badge { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+    .source-sap     { background: #E6F1FB; color: #185FA5; }
+    .source-tickets { background: #F3EAFB; color: #6B21A8; }
+    .source-kids    { background: #FEF3C7; color: #92400E; }
+
+    /* LAYOUT */
     main { max-width: 1140px; margin: 0 auto; padding: 2rem 1.5rem; }
     .page { display: none; }
     .page.active { display: block; }
@@ -71,27 +63,25 @@
     .page-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 1.5rem; }
     .section-title { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
 
-    /* ── METRICS ── */
+    /* METRICS */
     .metrics { display: grid; gap: 10px; margin-bottom: 1.5rem; }
+    .metrics-5 { grid-template-columns: repeat(5, minmax(0,1fr)); }
     .metrics-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
-    .metrics-4-shirt { grid-template-columns: repeat(4, minmax(0,1fr)); }
-    @media (max-width: 800px) { .metrics-4, .metrics-4-shirt { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 800px) { .metrics-5, .metrics-4 { grid-template-columns: repeat(2,1fr); } }
     .metric { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; }
-    .metric-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .metric-value { font-size: 26px; font-weight: 600; color: var(--text-primary); line-height: 1; letter-spacing: -0.02em; }
     .metric-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 5px; }
 
-    /* ── FILTERS ── */
+    /* FILTERS */
     .filter-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
     .filter-label { font-size: 13px; color: var(--text-secondary); }
     select { font-size: 13px; font-family: var(--font); border: 0.5px solid var(--border-mid); border-radius: var(--radius-md); padding: 6px 10px; background: var(--bg-primary); color: var(--text-primary); cursor: pointer; outline: none; }
-    select:focus { border-color: #378ADD; }
 
-    /* ── EVENT CARDS ── */
-    .event-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
-    @media (max-width: 800px) { .event-grid { grid-template-columns: repeat(2,1fr); } }
+    /* EVENT CARDS */
+    .event-grid { display: grid; gap: 10px; margin-bottom: 1.5rem; }
     .event-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; }
-    .event-name { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+    .event-name { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .event-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .event-rows { display: flex; flex-direction: column; gap: 8px; }
     .event-row { display: flex; justify-content: space-between; font-size: 13px; }
@@ -101,10 +91,12 @@
     .mini-track { flex: 1; height: 5px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
     .mini-fill { height: 100%; border-radius: 4px; }
     .mini-pct { font-size: 11px; color: var(--text-secondary); min-width: 30px; text-align: right; }
+    .kids-card { background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 0.5px solid #FDE68A; }
+    @media (prefers-color-scheme: dark) { .kids-card { background: linear-gradient(135deg,#2a2510 0%,#1f1c09 100%); border-color: #5a4e1a; } }
 
-    /* ── PAYMENT CARD ── */
-    .payment-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 2rem; }
-    .pay-row { flex: 1; display: flex; align-items: center; gap: 12px; }
+    /* PAYMENT */
+    .payment-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 2rem; flex-wrap: wrap; }
+    .pay-row { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 160px; }
     .pay-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
     .pay-bar-wrap { flex: 1; display: flex; align-items: center; gap: 10px; }
     .pay-bar-track { flex: 1; height: 6px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
@@ -112,21 +104,22 @@
     .pay-val { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; }
     .pay-divider { width: 0.5px; height: 28px; background: var(--border-light); flex-shrink: 0; }
 
-    /* ── MOD CARDS ── */
-    .mod-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    /* MOD CARDS */
+    .mod-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    @media (max-width: 700px) { .mod-grid { grid-template-columns: 1fr; } }
     .mod-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; }
-    .mod-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .mod-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 6px; }
     .mod-name { font-size: 16px; font-weight: 600; color: var(--text-primary); }
     .mod-pct { font-size: 13px; font-weight: 500; }
     .progress-bar { height: 6px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
     .progress-fill { height: 100%; border-radius: 4px; }
     .mod-nums { display: flex; justify-content: space-between; font-size: 13px; }
-    .num-used { font-weight: 500; color: var(--text-primary); }
+    .num-used { font-weight: 500; }
     .num-total { color: var(--text-secondary); }
 
-    /* ── TABLE ── */
+    /* TABLE */
     .table-wrap { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 1.5rem; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
     th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 16px; border-bottom: 0.5px solid var(--border-light); background: var(--bg-secondary); white-space: nowrap; }
     td { padding: 12px 16px; border-bottom: 0.5px solid var(--border-light); color: var(--text-primary); vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
@@ -136,7 +129,7 @@
     .bar-fill { height: 100%; border-radius: 4px; }
     .bar-pct { font-size: 11px; color: var(--text-secondary); min-width: 32px; }
 
-    /* ── CHARTS ── */
+    /* CHARTS */
     .chart-row { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(0,1fr); gap: 10px; margin-bottom: 1.5rem; }
     @media (max-width: 700px) { .chart-row { grid-template-columns: 1fr; } }
     .chart-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; }
@@ -144,7 +137,7 @@
     .legend-item { display: flex; align-items: center; gap: 5px; }
     .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
 
-    /* ── SHIRT PAGE ── */
+    /* SHIRT PAGE */
     .shirt-charts-row { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
     @media (max-width: 700px) { .shirt-charts-row { grid-template-columns: 1fr; } }
     .gender-split-row { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
@@ -158,15 +151,14 @@
     .size-tag { width: 28px; font-weight: 600; color: var(--text-primary); text-align: center; font-size: 12px; background: var(--bg-secondary); border-radius: 4px; padding: 2px 0; flex-shrink: 0; }
     .size-bar-track { flex: 1; height: 6px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
     .size-bar-fill { height: 100%; border-radius: 4px; }
-    .size-count { min-width: 36px; text-align: right; font-weight: 500; color: var(--text-primary); }
+    .size-count { min-width: 36px; text-align: right; font-weight: 500; }
     .size-pct { min-width: 34px; color: var(--text-tertiary); font-size: 11px; }
-    .city-shirt-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
-    @media (max-width: 800px) { .city-shirt-grid { grid-template-columns: repeat(2,1fr); } }
+    .city-shirt-grid { display: grid; gap: 10px; margin-bottom: 1.5rem; }
     .city-shirt-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px 18px; }
     .city-shirt-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
     .city-size-list { display: flex; flex-direction: column; gap: 6px; }
     .city-size-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-    .city-size-tag { width: 24px; font-weight: 600; font-size: 11px; background: var(--bg-secondary); border-radius: 3px; padding: 1px 0; text-align: center; color: var(--text-primary); flex-shrink: 0; }
+    .city-size-tag { width: 24px; font-weight: 600; font-size: 11px; background: var(--bg-secondary); border-radius: 3px; padding: 1px 0; text-align: center; flex-shrink: 0; }
     .city-size-bar { flex: 1; height: 5px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; }
     .city-size-fill { height: 100%; border-radius: 3px; }
     .city-size-n { min-width: 30px; text-align: right; color: var(--text-secondary); }
@@ -176,16 +168,15 @@
 </head>
 <body>
 
-<!-- Loading overlay -->
 <div id="loading">
   <div id="loading-spinner">
     <div class="spinner"></div>
-    <p class="loading-text">Carregando dados...</p>
+    <p class="loading-text" id="loadingText">Carregando dados.xlsx...</p>
   </div>
   <div id="error-msg">
     <div class="error-box">
       <h3>Não foi possível carregar os dados</h3>
-      <p>Verifique se o arquivo <code>dados.csv</code> está na mesma pasta que este <code>index.html</code> no repositório do GitHub.</p>
+      <p>Verifique se o arquivo <code>dados.xlsx</code> está na mesma pasta que o <code>index.html</code> no repositório do GitHub.<br><br>O arquivo deve conter as abas <code>Vendas SAP</code> e <code>Vendas - Tickets</code>.</p>
     </div>
   </div>
 </div>
@@ -218,54 +209,43 @@
 </header>
 
 <main>
-
   <!-- VISÃO GERAL -->
   <div class="page active" id="page-overview">
     <h1 class="page-title">Painel de Vagas e Inscrições</h1>
     <p class="page-sub" id="overviewSub">Carregando...</p>
-
-    <div class="metrics metrics-4" id="overviewMetrics"></div>
-
+    <div class="metrics metrics-5" id="overviewMetrics"></div>
     <p class="section-title">Inscrições por cidade</p>
     <div class="event-grid" id="eventGrid"></div>
-
     <p class="section-title">Tipo de pagamento</p>
     <div class="payment-card" id="paymentCard"></div>
-
     <p class="section-title">Distribuição por modalidade</p>
     <div class="mod-grid" id="modGrid"></div>
-
     <div class="chart-row">
       <div class="chart-card">
         <p class="section-title" style="margin-bottom:10px">Inscrições por dia</p>
         <div class="legend-row" id="chartLegend"></div>
-        <div style="position:relative;height:220px;">
-          <canvas id="lineChart" role="img" aria-label="Evolução diária de inscrições por cidade">Gráfico de linha com inscrições diárias por cidade.</canvas>
-        </div>
+        <div style="position:relative;height:220px;"><canvas id="lineChart"></canvas></div>
       </div>
       <div class="chart-card">
         <p class="section-title" style="margin-bottom:10px">Distribuição por cidade</p>
         <div class="legend-row" id="donutLegend"></div>
-        <div style="position:relative;height:180px;">
-          <canvas id="donutChart" role="img" aria-label="Distribuição percentual de inscritos por cidade">Distribuição por cidade.</canvas>
-        </div>
+        <div style="position:relative;height:180px;"><canvas id="donutChart"></canvas></div>
       </div>
     </div>
-
     <div class="filter-row">
       <span class="filter-label">Filtrar:</span>
-      <select id="filterEvento" onchange="renderTable()">
-        <option value="all">Todas as cidades</option>
-      </select>
-      <select id="filterModal" onchange="renderTable()">
-        <option value="all">Todas as modalidades</option>
+      <select id="filterEvento" onchange="renderTable()"><option value="all">Todas as cidades</option></select>
+      <select id="filterModal"  onchange="renderTable()"><option value="all">Todas as modalidades</option></select>
+      <select id="filterSource" onchange="renderTable()">
+        <option value="all">Todas as fontes</option>
+        <option value="SAP">SAP</option>
+        <option value="Tickets">Tickets</option>
       </select>
     </div>
-
     <p class="section-title">Detalhamento por cidade e modalidade</p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Cidade</th><th>Modalidade</th><th>Geral</th><th>Colaborador</th><th>Total inscritos</th><th>% do total</th><th>Arrecadado (est.)</th></tr></thead>
+        <thead><tr><th>Cidade</th><th>Modalidade</th><th>Fonte</th><th>Inscritos</th><th>% do total</th><th>Arrecadado</th></tr></thead>
         <tbody id="tableBody"></tbody>
       </table>
     </div>
@@ -275,21 +255,13 @@
   <div class="page" id="page-camisetas">
     <h1 class="page-title">Camisetas e Gênero</h1>
     <p class="page-sub" id="shirtSub">Carregando...</p>
-
-    <div class="metrics metrics-4-shirt" id="shirtMetrics"></div>
-
+    <div class="metrics metrics-4" id="shirtMetrics"></div>
     <p class="section-title">Gênero — distribuição de tamanhos</p>
     <div class="gender-split-row">
       <div class="gender-card">
         <div class="gender-hero">
-          <div>
-            <div class="gender-label">Feminino</div>
-            <div class="gender-count" style="color:#D85A30" id="countF">—</div>
-          </div>
-          <div style="margin-left:auto;text-align:right">
-            <div class="gender-label">Participação</div>
-            <div style="color:#D85A30;font-size:20px;font-weight:600" id="pctF">—</div>
-          </div>
+          <div><div class="gender-label">Feminino</div><div class="gender-count" style="color:#D85A30" id="countF">—</div></div>
+          <div style="margin-left:auto;text-align:right"><div class="gender-label">Participação</div><div style="color:#D85A30;font-size:20px;font-weight:600" id="pctF">—</div></div>
         </div>
         <div style="height:5px;background:var(--bg-secondary);border-radius:4px;overflow:hidden;margin-bottom:18px">
           <div id="barF" style="height:100%;background:#D85A30;border-radius:4px;width:0%"></div>
@@ -299,14 +271,8 @@
       </div>
       <div class="gender-card">
         <div class="gender-hero">
-          <div>
-            <div class="gender-label">Masculino</div>
-            <div class="gender-count" style="color:#378ADD" id="countM">—</div>
-          </div>
-          <div style="margin-left:auto;text-align:right">
-            <div class="gender-label">Participação</div>
-            <div style="color:#378ADD;font-size:20px;font-weight:600" id="pctM">—</div>
-          </div>
+          <div><div class="gender-label">Masculino</div><div class="gender-count" style="color:#378ADD" id="countM">—</div></div>
+          <div style="margin-left:auto;text-align:right"><div class="gender-label">Participação</div><div style="color:#378ADD;font-size:20px;font-weight:600" id="pctM">—</div></div>
         </div>
         <div style="height:5px;background:var(--bg-secondary);border-radius:4px;overflow:hidden;margin-bottom:18px">
           <div id="barM" style="height:100%;background:#378ADD;border-radius:4px;width:0%"></div>
@@ -315,27 +281,20 @@
         <div class="size-breakdown" id="sizeM"></div>
       </div>
     </div>
-
     <p class="section-title">Tamanhos — visão geral</p>
     <div class="shirt-charts-row">
       <div class="chart-card">
         <p class="section-title" style="margin-bottom:10px">Total por tamanho</p>
-        <div style="position:relative;height:240px;">
-          <canvas id="shirtBarChart" role="img" aria-label="Total de camisetas por tamanho">Total por tamanho.</canvas>
-        </div>
+        <div style="position:relative;height:240px;"><canvas id="shirtBarChart"></canvas></div>
       </div>
       <div class="chart-card">
         <p class="section-title" style="margin-bottom:10px">Tamanho por gênero</p>
         <div class="legend-row" id="shirtGroupedLegend"></div>
-        <div style="position:relative;height:220px;">
-          <canvas id="shirtGroupedChart" role="img" aria-label="Tamanhos por gênero">Comparativo por gênero.</canvas>
-        </div>
+        <div style="position:relative;height:220px;"><canvas id="shirtGroupedChart"></canvas></div>
       </div>
     </div>
-
     <p class="section-title">Tamanhos por cidade</p>
     <div class="city-shirt-grid" id="cityShirtGrid"></div>
-
     <p class="section-title">Tabela completa — tamanho por cidade e gênero</p>
     <div class="table-wrap">
       <table>
@@ -344,132 +303,195 @@
       </table>
     </div>
   </div>
-
 </main>
-<footer>BemolRun 2026 &mdash; Painel administrativo &mdash; Fonte: SAP via Databricks</footer>
+
+<footer>BemolRun 2026 &mdash; Painel administrativo &mdash; Fontes: SAP + Tickets</footer>
 
 <script>
 // ── CONSTANTS ─────────────────────────────────────────────────────────────
-const COLORS = ['#378ADD','#1D9E75','#D85A30','#8B5CF6','#EF9F27','#E24B4A'];
-const SIZES  = ['PP','P','M','G','GG','XG'];
-const fmt    = n => Number(n).toLocaleString('pt-BR');
-const pct    = (a, b) => b ? Math.round(a / b * 100) : 0;
+const CITY_COLORS = ['#378ADD','#1D9E75','#D85A30','#8B5CF6','#EF9F27','#E24B4A'];
+const KIDS_COLOR  = '#F59E0B';
+const SIZES       = ['PP','P','M','G','GG','XG'];
+const KIDS_MODS   = ['200M','100M','400M','50M'];
+const SAP_SHEET   = 'Vendas SAP';
+const TICK_SHEET  = 'Vendas - Tickets';
 
-// ── STATE ─────────────────────────────────────────────────────────────────
-let DATA = null; // processed data object, populated after CSV load
+const fmt  = n => Number(n).toLocaleString('pt-BR');
+const fmtR = n => 'R$ ' + Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct  = (a,b) => b ? Math.round(a/b*100) : 0;
 
-// ── CSV LOAD ──────────────────────────────────────────────────────────────
-Papa.parse('dados.csv', {
-  download: true,
-  header: true,
-  skipEmptyLines: true,
-  encoding: 'UTF-8',
-  complete: results => {
-    if (!results.data || results.data.length === 0) { showError(); return; }
-    try {
-      DATA = processCSV(results.data);
-      boot();
-    } catch(e) {
-      console.error(e);
-      showError();
-    }
-  },
-  error: () => showError(),
-});
+let DATA = null;
+let lineChartInst=null, donutChartInst=null, shirtBarInst=null, shirtGroupedInst=null;
+
+// ── LOAD XLSX ─────────────────────────────────────────────────────────────
+fetch('dados.xlsx')
+  .then(r => { if (!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); })
+  .then(buf => {
+    document.getElementById('loadingText').textContent = 'Lendo planilha...';
+    const wb = XLSX.read(buf, { type:'array', cellDates:true });
+
+    const sapSheet  = wb.Sheets[SAP_SHEET];
+    const tickSheet = wb.Sheets[TICK_SHEET];
+
+    if (!sapSheet)  throw new Error(`Aba "${SAP_SHEET}" não encontrada`);
+    if (!tickSheet) throw new Error(`Aba "${TICK_SHEET}" não encontrada`);
+
+    document.getElementById('loadingText').textContent = 'Processando dados...';
+
+    const sapRaw  = XLSX.utils.sheet_to_json(sapSheet,  { defval:'' });
+    const tickRaw = XLSX.utils.sheet_to_json(tickSheet, { defval:'' });
+
+    DATA = processData(sapRaw, tickRaw);
+    boot();
+  })
+  .catch(e => { console.error(e); showError(); });
 
 function showError() {
   document.getElementById('loading-spinner').style.display = 'none';
   document.getElementById('error-msg').style.display = 'flex';
 }
 
-// ── PROCESS CSV ───────────────────────────────────────────────────────────
-function processCSV(rows) {
-  // Normalise rows: only INSCRITO status, trim strings
-  const data = rows
-    .filter(r => (r.STATUS_PAGAMENTO || '').trim().toUpperCase() === 'INSCRITO')
+// ── PROCESS ───────────────────────────────────────────────────────────────
+function processData(sapRaw, tickRaw) {
+
+  // Helper: parse date from various formats → 'YYYY-MM-DD' string
+  function parseDate(val) {
+    if (!val) return '';
+    if (val instanceof Date) return val.toISOString().slice(0,10);
+    const s = String(val).trim();
+    // DD/MM/YYYY HH:MM or DD/MM/YYYY
+    const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+    // YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    return '';
+  }
+
+  // SAP rows
+  const sap = sapRaw
+    .filter(r => String(r.STATUS_PAGAMENTO||'').trim().toUpperCase() === 'INSCRITO')
     .map(r => ({
-      data:     (r.DATA || '').trim(),
-      cidade:   (r.EVENTO_ID || '').trim(),
-      modal:    (r.MODALIDADE || '').trim().toUpperCase(),
-      genero:   (r.GENERO || '').trim().toUpperCase(),
-      tamanho:  (r.TAMANHO || '').trim().toUpperCase(),
-      pagto:    (r.TIPO_PAGAMENTO || '').trim().toUpperCase(),
-      categoria:(r.CATEGORIA || '').trim().toUpperCase(),
-      valor:    parseFloat((r.VALOR || '0').toString().replace(',','.')),
+      source:   'SAP',
+      cidade:   String(r.EVENTO_ID||'').trim(),
+      modal:    String(r.MODALIDADE||'').trim().toUpperCase(),
+      genero:   String(r.GENERO||'').trim().toUpperCase(),
+      tamanho:  String(r.TAMANHO||'').trim().toUpperCase(),
+      pagto:    String(r.TIPO_PAGAMENTO||'').trim().toUpperCase(),
+      categoria:String(r.CATEGORIA||'').trim().toUpperCase(),
+      valor:    parseFloat(String(r.VALOR||'0').replace(',','.'))||0,
+      data:     parseDate(r.DATA),
     }));
 
-  const total = data.length;
+  // Tickets rows
+  const tick = tickRaw
+    .filter(r => String(r.status||'').trim() === 'Pago')
+    .map(r => {
+      const modalRaw = String(r.modalidade||'').trim().toUpperCase();
+      const isKids   = KIDS_MODS.some(k => modalRaw.startsWith(k));
+      const pagtoRaw = String(r.formaDePagamento||'').toLowerCase();
+      const pagto    = (pagtoRaw.includes('pix')||pagtoRaw.includes('picpay')||pagtoRaw.includes('google')) ? 'PIX' : 'CB';
+      const shirt5   = String(r.camiseta_5km||'').trim().toUpperCase();
+      const shirt10  = String(r.camiseta_10km||'').trim().toUpperCase();
+      const tamanho  = shirt5 || shirt10 || '';
+      const cidade   = isKids ? 'Manaus Kids' : String(r.tituloEvento||'').trim();
+      const valorRaw = String(r.valorRepasse||'0').replace(',','.');
+      return {
+        source:   'Tickets',
+        cidade,
+        modal:    isKids ? 'KIDS' : modalRaw,
+        genero:   String(r.sexo||'').trim().toUpperCase(),
+        tamanho,
+        pagto,
+        categoria:'GERAL',
+        valor:    parseFloat(valorRaw)||0,
+        data:     parseDate(r.dataPedido),
+      };
+    });
 
-  // Cities (preserve insertion order of first appearance, sorted by count desc)
-  const cidadeSet = {};
-  data.forEach(r => { cidadeSet[r.cidade] = (cidadeSet[r.cidade] || 0) + 1; });
-  const cidades = Object.keys(cidadeSet).sort((a,b) => cidadeSet[b] - cidadeSet[a]);
+  const all   = [...sap, ...tick];
+  const total = all.length;
 
-  // Modalidades
-  const modalSet = {};
-  data.forEach(r => { modalSet[r.modal] = (modalSet[r.modal] || 0) + 1; });
-  const modais = Object.keys(modalSet).sort((a,b) => modalSet[b] - modalSet[a]);
+  // City order: SAP cities by count desc, then Tickets-only, Kids last
+  const cityCount = {};
+  all.forEach(r => cityCount[r.cidade]=(cityCount[r.cidade]||0)+1);
+  const sapCities  = [...new Set(sap.map(r=>r.cidade))].sort((a,b)=>(cityCount[b]||0)-(cityCount[a]||0));
+  const tickExtra  = [...new Set(tick.map(r=>r.cidade))].filter(c=>c!=='Manaus Kids'&&!sapCities.includes(c));
+  const cidades    = [...sapCities, ...tickExtra, 'Manaus Kids'].filter(c=>cityCount[c]);
 
-  // Color map for cities
   const colorMap = {};
-  cidades.forEach((c,i) => colorMap[c] = COLORS[i % COLORS.length]);
+  cidades.filter(c=>c!=='Manaus Kids').forEach((c,i)=>colorMap[c]=CITY_COLORS[i%CITY_COLORS.length]);
+  colorMap['Manaus Kids'] = KIDS_COLOR;
 
-  // Events: per city stats
+  // Modalities (non-Kids, sorted by count)
+  const modalSet = {};
+  all.filter(r=>r.modal!=='KIDS').forEach(r=>modalSet[r.modal]=(modalSet[r.modal]||0)+1);
+  const modais = Object.keys(modalSet).sort((a,b)=>modalSet[b]-modalSet[a]);
+
+  // Events per city
   const events = cidades.map(cidade => {
-    const rows = data.filter(r => r.cidade === cidade);
+    const rows      = all.filter(r=>r.cidade===cidade);
     const inscritos = rows.length;
-    const geral  = rows.filter(r => r.categoria === 'GERAL').length;
-    const colab  = rows.filter(r => r.categoria === 'COLAB').length;
-    const valor  = rows.reduce((s,r) => s + r.valor, 0);
-    const byMod  = {};
-    modais.forEach(m => byMod[m] = rows.filter(r => r.modal === m).length);
-    return { id: cidade, inscritos, geral, colab, valor, byMod, color: colorMap[cidade] };
+    const valor     = rows.reduce((s,r)=>s+r.valor,0);
+    const byMod     = {};
+    [...modais,'KIDS'].forEach(m=>byMod[m]=rows.filter(r=>r.modal===m).length);
+    const sources   = [...new Set(rows.map(r=>r.source))];
+    return { id:cidade, inscritos, valor, byMod, sources, color:colorMap[cidade], isKids:cidade==='Manaus Kids' };
   });
 
-  // Payment
+  // Payment combined
   const pagtoMap = {};
-  data.forEach(r => { pagtoMap[r.pagto] = (pagtoMap[r.pagto] || 0) + 1; });
+  all.forEach(r=>pagtoMap[r.pagto]=(pagtoMap[r.pagto]||0)+1);
 
-  // Daily data per city
+  // Daily per city
   const dateSet = {};
-  data.forEach(r => { dateSet[r.data] = true; });
+  all.forEach(r=>{ if(r.data) dateSet[r.data]=true; });
   const dates = Object.keys(dateSet).sort();
   const daily = {};
-  cidades.forEach(c => {
-    daily[c] = dates.map(d => data.filter(r => r.cidade === c && r.data === d).length);
-  });
+  cidades.forEach(c=>daily[c]=dates.map(d=>all.filter(r=>r.cidade===c&&r.data===d).length));
 
   // Gender
   const genderMap = {};
-  data.forEach(r => { genderMap[r.genero] = (genderMap[r.genero] || 0) + 1; });
+  all.forEach(r=>{ if(r.genero) genderMap[r.genero]=(genderMap[r.genero]||0)+1; });
 
-  // Sizes per gender
-  const sizeByGender = {};
-  ['F','M'].forEach(g => {
-    sizeByGender[g] = {};
-    SIZES.forEach(s => {
-      sizeByGender[g][s] = data.filter(r => r.genero === g && r.tamanho === s).length;
+  // Shirt sizes per gender (combined)
+  const sizeByGender = { F:{}, M:{} };
+  SIZES.forEach(s=>{ sizeByGender.F[s]=0; sizeByGender.M[s]=0; });
+  all.forEach(r=>{
+    if(r.tamanho&&SIZES.includes(r.tamanho)&&(r.genero==='F'||r.genero==='M'))
+      sizeByGender[r.genero][r.tamanho]++;
+  });
+
+  // Shirt sizes per city+gender
+  const sizeByCityGender = {};
+  cidades.forEach(c=>{
+    sizeByCityGender[c]={ F:{}, M:{} };
+    SIZES.forEach(s=>{ sizeByCityGender[c].F[s]=0; sizeByCityGender[c].M[s]=0; });
+    all.filter(r=>r.cidade===c).forEach(r=>{
+      if(r.tamanho&&SIZES.includes(r.tamanho)&&(r.genero==='F'||r.genero==='M'))
+        sizeByCityGender[c][r.genero][r.tamanho]++;
     });
   });
 
-  // Sizes per city+gender
-  const sizeByCityGender = {};
-  cidades.forEach(c => {
-    sizeByCityGender[c] = {};
-    ['F','M'].forEach(g => {
-      sizeByCityGender[c][g] = {};
-      SIZES.forEach(s => {
-        sizeByCityGender[c][g][s] = data.filter(r => r.cidade === c && r.genero === g && r.tamanho === s).length;
+  // Flat table rows
+  const tableRows = [];
+  cidades.forEach(cidade=>{
+    const cityAll  = all.filter(r=>r.cidade===cidade);
+    const mList    = cidade==='Manaus Kids'?['KIDS']:[...modais];
+    ['SAP','Tickets'].forEach(source=>{
+      const srcRows = cityAll.filter(r=>r.source===source);
+      if(!srcRows.length) return;
+      mList.forEach(m=>{
+        const mRows = srcRows.filter(r=>r.modal===m);
+        if(!mRows.length) return;
+        tableRows.push({ cidade, modal:m, source, inscritos:mRows.length, valor:mRows.reduce((s,r)=>s+r.valor,0), color:colorMap[cidade] });
       });
     });
   });
 
-  return { total, cidades, modais, colorMap, events, pagtoMap, dates, daily, genderMap, sizeByGender, sizeByCityGender };
+  return { total, cidades, modais, colorMap, events, pagtoMap, dates, daily, genderMap, sizeByGender, sizeByCityGender, tableRows };
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────
-let lineChartInst = null, donutChartInst = null, shirtBarInst = null, shirtGroupedInst = null;
-
 function boot() {
   document.getElementById('loading').style.display = 'none';
   populateFilters();
@@ -479,121 +501,152 @@ function boot() {
     'Atualizado às ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 }
 
-// ── TAB SWITCH ────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});
   document.getElementById('page-'+tab).classList.add('active');
-  const btn = document.getElementById('tab-'+tab);
+  const btn=document.getElementById('tab-'+tab);
   btn.classList.add('active'); btn.setAttribute('aria-selected','true');
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-// ── FILTERS ───────────────────────────────────────────────────────────────
 function populateFilters() {
-  const ec = document.getElementById('filterEvento');
-  const em = document.getElementById('filterModal');
-  DATA.cidades.forEach(c => { const o = document.createElement('option'); o.value=c; o.textContent=c; ec.appendChild(o); });
-  DATA.modais.forEach(m => { const o = document.createElement('option'); o.value=m; o.textContent=m+' km'.replace('KM',' km'); em.appendChild(o); });
+  const ec=document.getElementById('filterEvento');
+  const em=document.getElementById('filterModal');
+  DATA.cidades.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;ec.appendChild(o);});
+  [...DATA.modais,'KIDS'].forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m==='KIDS'?'Kids':m.replace('KM',' km');em.appendChild(o);});
 }
 
 // ── OVERVIEW ──────────────────────────────────────────────────────────────
 function renderOverview() {
   const { total, events, modais, cidades, colorMap, pagtoMap, dates, daily } = DATA;
+  const totalValor = events.reduce((s,e)=>s+e.valor,0);
+  const kidsEvt    = events.find(e=>e.isKids);
+  const kidsTotal  = kidsEvt?.inscritos||0;
+  const km5        = events.filter(e=>!e.isKids).reduce((s,e)=>s+(e.byMod['5KM']||0),0);
+  const km10       = events.filter(e=>!e.isKids).reduce((s,e)=>s+(e.byMod['10KM']||0),0);
 
-  // Subtitle
   document.getElementById('overviewSub').textContent =
-    `Dados extraídos do SAP via Databricks — ${fmt(total)} inscrições confirmadas`;
+    `SAP + Tickets — ${fmt(total)} inscrições confirmadas em ${cidades.filter(c=>c!=='Manaus Kids').length} cidades`;
 
-  // Metrics
-  const totalValor = events.reduce((s,e) => s+e.valor, 0);
-  const metricRows = [
-    { label:'Total inscritos', value: fmt(total), sub: `${cidades.length} cidades` },
-    { label:'Arrecadado', value: 'R$ '+Math.round(totalValor/1000)+'k', sub: 'R$ '+totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) },
-    ...modais.map(m => {
-      const n = events.reduce((s,e) => s+(e.byMod[m]||0),0);
-      return { label: m.replace('KM',' km'), value: fmt(n), sub: pct(n,total)+'% das inscrições' };
-    })
-  ];
-  document.getElementById('overviewMetrics').innerHTML = metricRows.map(m =>
-    `<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-value" style="font-size:${m.value.length>6?'20px':'26px'}">${m.value}</div><div class="metric-sub">${m.sub}</div></div>`
-  ).join('');
+  document.getElementById('overviewMetrics').innerHTML = [
+    { label:'Total inscritos', value:fmt(total),                         sub:`${cidades.filter(c=>c!=='Manaus Kids').length} cidades + Kids` },
+    { label:'Arrecadado',      value:'R$ '+Math.round(totalValor/1000)+'k', sub:fmtR(totalValor) },
+    { label:'5 km',            value:fmt(km5),                           sub:pct(km5,total)+'% das inscrições' },
+    { label:'10 km',           value:fmt(km10),                          sub:pct(km10,total)+'% das inscrições' },
+    { label:'Kids',            value:fmt(kidsTotal),                     sub:pct(kidsTotal,total)+'% das inscrições', kids:true },
+  ].map(m=>`<div class="metric${m.kids?' kids-card':''}">
+    <div class="metric-label">${m.label}${m.kids?'<span class="source-badge source-kids">Tickets</span>':''}</div>
+    <div class="metric-value" style="font-size:${m.value.length>7?'19px':'26px'}">${m.value}</div>
+    <div class="metric-sub">${m.sub}</div>
+  </div>`).join('');
 
-  // Event cards
-  document.getElementById('eventGrid').style.gridTemplateColumns = `repeat(${Math.min(cidades.length,4)},minmax(0,1fr))`;
-  document.getElementById('eventGrid').innerHTML = events.map(e => {
-    const pctTotal = pct(e.inscritos, total);
-    const modRows = modais.map(m =>
-      `<div class="event-row"><span class="event-row-label">${m.replace('KM',' km')}</span><span class="event-row-val">${fmt(e.byMod[m]||0)} <span style="color:var(--text-tertiary);font-weight:400;font-size:12px">(${pct(e.byMod[m]||0,e.inscritos)}%)</span></span></div>`
-    ).join('');
+  // Event grid
+  const nonKids = events.filter(e=>!e.isKids);
+  const grid = document.getElementById('eventGrid');
+  grid.style.gridTemplateColumns = `repeat(${Math.min(nonKids.length,4)},minmax(0,1fr))`;
+  grid.innerHTML = nonKids.map(e=>{
+    const p = pct(e.inscritos,total);
+    const modRows = modais.map(m=>`<div class="event-row">
+      <span class="event-row-label">${m.replace('KM',' km')}</span>
+      <span class="event-row-val">${fmt(e.byMod[m]||0)} <span style="color:var(--text-tertiary);font-weight:400;font-size:12px">(${pct(e.byMod[m]||0,e.inscritos)}%)</span></span>
+    </div>`).join('');
+    const badges = e.sources.map(s=>`<span class="source-badge source-${s.toLowerCase()}">${s}</span>`).join(' ');
     return `<div class="event-card">
-      <div class="event-name"><span class="event-dot" style="background:${e.color}"></span>${e.id}</div>
+      <div class="event-name"><span class="event-dot" style="background:${e.color}"></span>${e.id} ${badges}</div>
       <div class="event-rows">
         <div class="event-row"><span class="event-row-label">Inscritos</span><span class="event-row-val">${fmt(e.inscritos)}</span></div>
         ${modRows}
-        <div class="event-row"><span class="event-row-label">Colaboradores</span><span class="event-row-val">${fmt(e.colab)}</span></div>
         <div class="event-row"><span class="event-row-label">Arrecadado</span><span class="event-row-val" style="color:${e.color}">R$ ${Math.round(e.valor/1000)}k</span></div>
       </div>
       <div class="mini-bar">
-        <div class="mini-track"><div class="mini-fill" style="width:${pctTotal}%;background:${e.color}"></div></div>
-        <span class="mini-pct">${pctTotal}% do total</span>
+        <div class="mini-track"><div class="mini-fill" style="width:${p}%;background:${e.color}"></div></div>
+        <span class="mini-pct">${p}% do total</span>
       </div>
     </div>`;
   }).join('');
 
+  // Kids card (full width)
+  if (kidsEvt) {
+    const div = document.createElement('div');
+    div.style.gridColumn = '1 / -1';
+    div.innerHTML = `<div class="event-card kids-card" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span class="event-dot" style="background:${KIDS_COLOR}"></span>
+        <span style="font-size:15px;font-weight:600">Manaus Kids</span>
+        <span class="source-badge source-kids">Tickets</span>
+      </div>
+      <div style="display:flex;gap:2rem;flex-wrap:wrap;flex:1">
+        <div><div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Inscritos</div><div style="font-size:20px;font-weight:600">${fmt(kidsEvt.inscritos)}</div></div>
+        <div><div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Arrecadado</div><div style="font-size:20px;font-weight:600;color:${KIDS_COLOR}">${fmtR(kidsEvt.valor)}</div></div>
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">% do total</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;height:5px;background:var(--bg-secondary);border-radius:4px;overflow:hidden"><div style="width:${pct(kidsEvt.inscritos,total)}%;height:100%;background:${KIDS_COLOR};border-radius:4px"></div></div>
+            <span style="font-size:12px;color:var(--text-secondary)">${pct(kidsEvt.inscritos,total)}%</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    grid.appendChild(div);
+  }
+
   // Payment card
-  const pagtoEntries = Object.entries(pagtoMap).sort((a,b)=>b[1]-a[1]);
   const payColors = ['#378ADD','#1D9E75','#EF9F27','#D85A30'];
-  document.getElementById('paymentCard').innerHTML = pagtoEntries.map(([ label, count ], i) => {
-    const p = pct(count, total);
-    const divider = i < pagtoEntries.length-1 ? `<div class="pay-divider"></div>` : '';
-    const displayLabel = label === 'CB' ? 'Cartão / Boleto' : label === 'PIX' ? 'PIX' : label;
+  const payLabels = { CB:'Cartão / Boleto', PIX:'PIX' };
+  const entries   = Object.entries(pagtoMap).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('paymentCard').innerHTML = entries.map(([k,n],i)=>{
+    const p = pct(n,total);
+    const div = i<entries.length-1?'<div class="pay-divider"></div>':'';
     return `<div class="pay-row">
-      <span class="pay-label">${displayLabel}</span>
+      <span class="pay-label">${payLabels[k]||k}</span>
       <div class="pay-bar-wrap">
         <div class="pay-bar-track"><div class="pay-bar-fill" style="width:${p}%;background:${payColors[i%payColors.length]}"></div></div>
-        <span class="pay-val">${fmt(count)} <span style="color:var(--text-tertiary);font-weight:400">(${p}%)</span></span>
+        <span class="pay-val">${fmt(n)} <span style="color:var(--text-tertiary);font-weight:400">(${p}%)</span></span>
       </div>
-    </div>${divider}`;
+    </div>${div}`;
   }).join('');
 
   // Modality cards
-  document.getElementById('modGrid').innerHTML = modais.map((m,i) => {
-    const n = events.reduce((s,e) => s+(e.byMod[m]||0),0);
-    const p = pct(n, total);
-    return `<div class="mod-card">
-      <div class="mod-header"><span class="mod-name">${m.replace('KM',' km')}</span><span class="mod-pct" style="color:${COLORS[i]}">${p}% das inscrições</span></div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${p}%;background:${COLORS[i]}"></div></div>
-      <div class="mod-nums"><span class="num-used">${fmt(n)} inscritos</span><span class="num-total">de ${fmt(total)} total</span></div>
+  document.getElementById('modGrid').innerHTML = [
+    ...modais.map((m,i)=>({ label:m.replace('KM',' km'), n:events.filter(e=>!e.isKids).reduce((s,e)=>s+(e.byMod[m]||0),0), color:CITY_COLORS[i], kids:false })),
+    { label:'Kids', n:kidsTotal, color:KIDS_COLOR, kids:true },
+  ].map(m=>{
+    const p=pct(m.n,total);
+    return `<div class="mod-card${m.kids?' kids-card':''}">
+      <div class="mod-header">
+        <span class="mod-name">${m.label}</span>
+        <span class="mod-pct" style="color:${m.color}">${p}%</span>
+        ${m.kids?'<span class="source-badge source-kids">Tickets</span>':''}
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${p}%;background:${m.color}"></div></div>
+      <div class="mod-nums"><span class="num-used">${fmt(m.n)} inscritos</span><span class="num-total">de ${fmt(total)} total</span></div>
     </div>`;
   }).join('');
 
   // Charts
-  const isDark = matchMedia('(prefers-color-scheme:dark)').matches;
-  const gridC  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-  const textC  = isDark ? '#68685e' : '#9a9a96';
+  const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
+  const gridC=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)';
+  const textC=isDark?'#68685e':'#9a9a96';
 
-  document.getElementById('chartLegend').innerHTML = cidades.map(c =>
+  document.getElementById('chartLegend').innerHTML=cidades.map(c=>
     `<span class="legend-item"><span class="legend-dot" style="background:${colorMap[c]}"></span>${c}</span>`
   ).join('');
 
-  const dateLabels = dates.map(d => d.slice(5).replace('-','/'));
-  if (lineChartInst) lineChartInst.destroy();
-  lineChartInst = new Chart(document.getElementById('lineChart'), {
+  if(lineChartInst)lineChartInst.destroy();
+  lineChartInst=new Chart(document.getElementById('lineChart'),{
     type:'line',
-    data:{ labels: dateLabels, datasets: cidades.map(c => ({ label:c, data:daily[c], borderColor:colorMap[c], backgroundColor:colorMap[c]+'11', tension:0.4, pointRadius:3, fill:true })) },
-    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{mode:'index',intersect:false} }, scales:{ x:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}}, y:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}} } }
+    data:{ labels:dates.map(d=>d.slice(5).replace('-','/')), datasets:cidades.map(c=>({ label:c, data:daily[c], borderColor:colorMap[c], backgroundColor:colorMap[c]+'11', tension:0.4, pointRadius:3, fill:true })) },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}}, scales:{x:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}},y:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}}} }
   });
 
-  const donutData   = events.map(e => e.inscritos);
-  const donutColors = events.map(e => e.color);
-  document.getElementById('donutLegend').innerHTML = events.map(e =>
+  document.getElementById('donutLegend').innerHTML=events.map(e=>
     `<span class="legend-item"><span class="legend-dot" style="background:${e.color}"></span>${e.id} ${pct(e.inscritos,total)}%</span>`
   ).join('');
-  if (donutChartInst) donutChartInst.destroy();
-  donutChartInst = new Chart(document.getElementById('donutChart'), {
+  if(donutChartInst)donutChartInst.destroy();
+  donutChartInst=new Chart(document.getElementById('donutChart'),{
     type:'doughnut',
-    data:{ labels:cidades, datasets:[{data:donutData, backgroundColor:donutColors, borderWidth:0, hoverOffset:4}] },
+    data:{ labels:cidades, datasets:[{data:events.map(e=>e.inscritos),backgroundColor:events.map(e=>e.color),borderWidth:0,hoverOffset:4}] },
     options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, cutout:'65%' }
   });
 
@@ -601,171 +654,151 @@ function renderOverview() {
 }
 
 function renderTable() {
-  const fe = document.getElementById('filterEvento').value;
-  const fm = document.getElementById('filterModal').value;
-  const { events, modais, total, colorMap } = DATA;
-
-  let rows = [];
-  events.forEach(e => {
-    if (fe !== 'all' && e.id !== fe) return;
-    modais.forEach(m => {
-      if (fm !== 'all' && fm !== m) return;
-      const t = e.byMod[m] || 0;
-      const g = Math.round(t * (e.geral / e.inscritos));
-      const c = Math.round(t * (e.colab / e.inscritos));
-      const v = e.valor * (t / e.inscritos);
-      const p = pct(t, total);
-      rows.push(`<tr>
-        <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${e.color};flex-shrink:0"></span>${e.id}</span></td>
-        <td>${m.replace('KM',' km')}</td>
-        <td>${fmt(g)}</td><td>${fmt(c)}</td>
-        <td style="font-weight:600">${fmt(t)}</td>
-        <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${Math.min(p*3,100)}%;background:${e.color}"></div></div><span class="bar-pct">${p}%</span></div></td>
-        <td style="color:${e.color};font-weight:500">R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-      </tr>`);
-    });
-  });
-  document.getElementById('tableBody').innerHTML = rows.join('') ||
-    `<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:28px">Nenhum resultado encontrado.</td></tr>`;
+  const fe=document.getElementById('filterEvento').value;
+  const fm=document.getElementById('filterModal').value;
+  const fs=document.getElementById('filterSource').value;
+  const { tableRows, total }=DATA;
+  const filtered=tableRows.filter(r=>
+    (fe==='all'||r.cidade===fe)&&
+    (fm==='all'||r.modal===fm)&&
+    (fs==='all'||r.source===fs)
+  );
+  document.getElementById('tableBody').innerHTML=filtered.map(r=>{
+    const p=pct(r.inscritos,total);
+    return `<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0"></span>${r.cidade}</span></td>
+      <td>${r.modal==='KIDS'?'Kids':r.modal.replace('KM',' km')}</td>
+      <td><span class="source-badge source-${r.source.toLowerCase()}">${r.source}</span></td>
+      <td style="font-weight:600">${fmt(r.inscritos)}</td>
+      <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${Math.min(p*3,100)}%;background:${r.color}"></div></div><span class="bar-pct">${p}%</span></div></td>
+      <td style="color:${r.color};font-weight:500">${fmtR(r.valor)}</td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:28px">Nenhum resultado encontrado.</td></tr>`;
 }
 
 // ── SHIRT PAGE ────────────────────────────────────────────────────────────
 function renderShirtPage() {
-  const { total, genderMap, sizeByGender, sizeByCityGender, cidades, colorMap } = DATA;
-  const F = genderMap['F'] || 0;
-  const M = genderMap['M'] || 0;
+  const { total, genderMap, sizeByGender, sizeByCityGender, cidades, colorMap }=DATA;
+  const F=genderMap['F']||0, M=genderMap['M']||0;
 
-  document.getElementById('shirtSub').textContent =
-    `Distribuição de tamanhos e gênero entre todos os inscritos — ${fmt(total)} atletas`;
+  document.getElementById('shirtSub').textContent=
+    `Distribuição de tamanhos e gênero — SAP + Tickets — ${fmt(total)} atletas`;
 
-  // Top size
-  const totalBySize = {};
-  SIZES.forEach(s => totalBySize[s] = (sizeByGender['F'][s]||0) + (sizeByGender['M'][s]||0));
-  const topSize = SIZES.reduce((a,b) => totalBySize[a]>=totalBySize[b]?a:b);
+  const totalBySize={};
+  SIZES.forEach(s=>totalBySize[s]=(sizeByGender.F[s]||0)+(sizeByGender.M[s]||0));
+  const topSize=SIZES.reduce((a,b)=>totalBySize[a]>=totalBySize[b]?a:b);
 
-  document.getElementById('shirtMetrics').innerHTML = [
-    { label:'Feminino',                    value: fmt(F), sub: pct(F,total)+'% dos inscritos' },
-    { label:'Masculino',                   value: fmt(M), sub: pct(M,total)+'% dos inscritos' },
-    { label:'Tamanho mais pedido',         value: topSize, sub: fmt(totalBySize[topSize])+' unidades ('+pct(totalBySize[topSize],total)+'%)' },
-    { label:'Total de camisetas distribuídas', value: fmt(total), sub: '1 por inscrito' },
-  ].map(m => `<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-value">${m.value}</div><div class="metric-sub">${m.sub}</div></div>`).join('');
+  document.getElementById('shirtMetrics').innerHTML=[
+    {label:'Feminino',                        value:fmt(F),    sub:pct(F,total)+'% dos inscritos'},
+    {label:'Masculino',                       value:fmt(M),    sub:pct(M,total)+'% dos inscritos'},
+    {label:'Tamanho mais pedido',             value:topSize,   sub:fmt(totalBySize[topSize])+' unidades ('+pct(totalBySize[topSize],total)+'%)'},
+    {label:'Total de camisetas distribuídas', value:fmt(F+M),  sub:'SAP + Tickets'},
+  ].map(m=>`<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-value">${m.value}</div><div class="metric-sub">${m.sub}</div></div>`).join('');
 
-  // Gender heroes
-  document.getElementById('countF').textContent = fmt(F);
-  document.getElementById('pctF').textContent   = pct(F,total)+'%';
-  document.getElementById('barF').style.width   = pct(F,total)+'%';
-  document.getElementById('countM').textContent = fmt(M);
-  document.getElementById('pctM').textContent   = pct(M,total)+'%';
-  document.getElementById('barM').style.width   = pct(M,total)+'%';
+  document.getElementById('countF').textContent=fmt(F);
+  document.getElementById('pctF').textContent=pct(F,total)+'%';
+  document.getElementById('barF').style.width=pct(F,total)+'%';
+  document.getElementById('countM').textContent=fmt(M);
+  document.getElementById('pctM').textContent=pct(M,total)+'%';
+  document.getElementById('barM').style.width=pct(M,total)+'%';
 
-  // Size breakdown per gender
-  function buildSizeBreakdown(containerId, data, color) {
-    const max = Math.max(...Object.values(data));
-    const tot = Object.values(data).reduce((a,b)=>a+b,0);
-    document.getElementById(containerId).innerHTML = SIZES.map(s => {
-      const n = data[s]||0;
+  function buildSizes(id,data,color) {
+    const max=Math.max(...Object.values(data),1);
+    const tot=Object.values(data).reduce((a,b)=>a+b,0);
+    document.getElementById(id).innerHTML=SIZES.map(s=>{
+      const n=data[s]||0;
       return `<div class="size-row">
         <span class="size-tag">${s}</span>
-        <div class="size-bar-track"><div class="size-bar-fill" style="width:${max?Math.round(n/max*100):0}%;background:${color}"></div></div>
+        <div class="size-bar-track"><div class="size-bar-fill" style="width:${Math.round(n/max*100)}%;background:${color}"></div></div>
         <span class="size-count">${fmt(n)}</span>
         <span class="size-pct">${pct(n,tot)}%</span>
       </div>`;
     }).join('');
   }
-  buildSizeBreakdown('sizeF', sizeByGender['F']||{}, '#D85A30');
-  buildSizeBreakdown('sizeM', sizeByGender['M']||{}, '#378ADD');
+  buildSizes('sizeF',sizeByGender.F,'#D85A30');
+  buildSizes('sizeM',sizeByGender.M,'#378ADD');
 
-  // Shirt charts
-  const isDark = matchMedia('(prefers-color-scheme:dark)').matches;
-  const gridC = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-  const textC = isDark ? '#68685e' : '#9a9a96';
+  const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
+  const gridC=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)';
+  const textC=isDark?'#68685e':'#9a9a96';
 
-  if (shirtBarInst) shirtBarInst.destroy();
-  shirtBarInst = new Chart(document.getElementById('shirtBarChart'), {
+  if(shirtBarInst)shirtBarInst.destroy();
+  shirtBarInst=new Chart(document.getElementById('shirtBarChart'),{
     type:'bar',
-    data:{ labels:SIZES, datasets:[{ label:'Total', data:SIZES.map(s=>totalBySize[s]||0), backgroundColor:['#E1A8C4','#C7A8E1','#A8C7E1','#A8E1C7','#E1C7A8','#E1A8A8'], borderWidth:0, borderRadius:4 }] },
-    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.raw)} camisetas`}}}, scales:{ x:{grid:{color:gridC},ticks:{color:textC,font:{size:12}}}, y:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}} } }
+    data:{labels:SIZES,datasets:[{label:'Total',data:SIZES.map(s=>totalBySize[s]||0),backgroundColor:['#E1A8C4','#C7A8E1','#A8C7E1','#A8E1C7','#E1C7A8','#E1A8A8'],borderWidth:0,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.raw)} camisetas`}}},scales:{x:{grid:{color:gridC},ticks:{color:textC,font:{size:12}}},y:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}}}}
   });
 
-  document.getElementById('shirtGroupedLegend').innerHTML =
+  document.getElementById('shirtGroupedLegend').innerHTML=
     `<span class="legend-item"><span class="legend-dot" style="background:#D85A30"></span>Feminino</span>
      <span class="legend-item"><span class="legend-dot" style="background:#378ADD"></span>Masculino</span>`;
 
-  if (shirtGroupedInst) shirtGroupedInst.destroy();
-  shirtGroupedInst = new Chart(document.getElementById('shirtGroupedChart'), {
+  if(shirtGroupedInst)shirtGroupedInst.destroy();
+  shirtGroupedInst=new Chart(document.getElementById('shirtGroupedChart'),{
     type:'bar',
-    data:{ labels:SIZES, datasets:[
-      { label:'Feminino',  data:SIZES.map(s=>sizeByGender['F'][s]||0), backgroundColor:'#D85A30', borderWidth:0, borderRadius:3 },
-      { label:'Masculino', data:SIZES.map(s=>sizeByGender['M'][s]||0), backgroundColor:'#378ADD', borderWidth:0, borderRadius:3 },
+    data:{labels:SIZES,datasets:[
+      {label:'Feminino', data:SIZES.map(s=>sizeByGender.F[s]||0),backgroundColor:'#D85A30',borderWidth:0,borderRadius:3},
+      {label:'Masculino',data:SIZES.map(s=>sizeByGender.M[s]||0),backgroundColor:'#378ADD',borderWidth:0,borderRadius:3},
     ]},
-    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{mode:'index',intersect:false}}, scales:{ x:{grid:{color:gridC},ticks:{color:textC,font:{size:12}}}, y:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}} } }
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},scales:{x:{grid:{color:gridC},ticks:{color:textC,font:{size:12}}},y:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}}}}
   });
 
-  // City shirt cards
-  document.getElementById('cityShirtGrid').style.gridTemplateColumns = `repeat(${Math.min(cidades.length,4)},minmax(0,1fr))`;
-  document.getElementById('cityShirtGrid').innerHTML = cidades.map(c => {
-    const d = sizeByCityGender[c] || {};
-    const max = Math.max(...SIZES.map(s => (d['F']?.[s]||0)+(d['M']?.[s]||0)));
+  const shirtCidades=cidades.filter(c=>c!=='Manaus Kids');
+  document.getElementById('cityShirtGrid').style.gridTemplateColumns=`repeat(${Math.min(shirtCidades.length,4)},minmax(0,1fr))`;
+  document.getElementById('cityShirtGrid').innerHTML=shirtCidades.map(c=>{
+    const d=sizeByCityGender[c]||{F:{},M:{}};
+    const max=Math.max(...SIZES.map(s=>(d.F[s]||0)+(d.M[s]||0)),1);
     return `<div class="city-shirt-card">
       <div class="city-shirt-name"><span class="event-dot" style="background:${colorMap[c]}"></span>${c}</div>
-      <div class="city-size-list">${SIZES.map(s => {
-        const n = (d['F']?.[s]||0)+(d['M']?.[s]||0);
+      <div class="city-size-list">${SIZES.map(s=>{
+        const n=(d.F[s]||0)+(d.M[s]||0);
         return `<div class="city-size-row">
           <span class="city-size-tag">${s}</span>
-          <div class="city-size-bar"><div class="city-size-fill" style="width:${max?Math.round(n/max*100):0}%;background:${colorMap[c]}"></div></div>
+          <div class="city-size-bar"><div class="city-size-fill" style="width:${Math.round(n/max*100)}%;background:${colorMap[c]}"></div></div>
           <span class="city-size-n">${n}</span>
         </div>`;
       }).join('')}</div>
     </div>`;
   }).join('');
 
-  // Shirt table
-  const tRows = [];
-  cidades.forEach(c => {
-    const d = sizeByCityGender[c] || {};
-    ['F','M'].forEach(g => {
-      const gLabel = g==='F'?'Feminino':'Masculino';
-      const gColor = g==='F'?'#D85A30':'#378ADD';
-      const tot = SIZES.reduce((a,s)=>a+(d[g]?.[s]||0),0);
-      tRows.push(`<tr>
+  document.getElementById('shirtTableBody').innerHTML=shirtCidades.flatMap(c=>{
+    const d=sizeByCityGender[c]||{F:{},M:{}};
+    return ['F','M'].map(g=>{
+      const tot=SIZES.reduce((a,s)=>a+(d[g][s]||0),0);
+      return `<tr>
         <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${colorMap[c]};flex-shrink:0"></span>${c}</span></td>
-        <td style="color:${gColor};font-weight:500">${gLabel}</td>
-        ${SIZES.map(s=>`<td>${fmt(d[g]?.[s]||0)}</td>`).join('')}
+        <td style="color:${g==='F'?'#D85A30':'#378ADD'};font-weight:500">${g==='F'?'Feminino':'Masculino'}</td>
+        ${SIZES.map(s=>`<td>${fmt(d[g][s]||0)}</td>`).join('')}
         <td style="font-weight:600">${fmt(tot)}</td>
-      </tr>`);
+      </tr>`;
     });
-  });
-  document.getElementById('shirtTableBody').innerHTML = tRows.join('');
+  }).join('');
 }
 
 // ── EXPORT ────────────────────────────────────────────────────────────────
 function exportCSV() {
-  const page = document.querySelector('.page.active').id;
+  const page=document.querySelector('.page.active').id;
   let rows, filename;
-  if (page === 'page-camisetas') {
-    const { cidades, sizeByCityGender } = DATA;
-    rows = [['Cidade','Gênero',...SIZES,'Total']];
-    cidades.forEach(c => {
-      const d = sizeByCityGender[c]||{};
-      ['F','M'].forEach(g => {
-        const tot = SIZES.reduce((a,s)=>a+(d[g]?.[s]||0),0);
-        rows.push([c, g==='F'?'Feminino':'Masculino', ...SIZES.map(s=>d[g]?.[s]||0), tot]);
+  if(page==='page-camisetas'){
+    const {cidades,sizeByCityGender}=DATA;
+    rows=[['Cidade','Gênero',...SIZES,'Total']];
+    cidades.filter(c=>c!=='Manaus Kids').forEach(c=>{
+      const d=sizeByCityGender[c]||{F:{},M:{}};
+      ['F','M'].forEach(g=>{
+        const tot=SIZES.reduce((a,s)=>a+(d[g][s]||0),0);
+        rows.push([c,g==='F'?'Feminino':'Masculino',...SIZES.map(s=>d[g][s]||0),tot]);
       });
     });
-    filename = 'bemolrun2026-camisetas.csv';
+    filename='bemolrun2026-camisetas.csv';
   } else {
-    const { events, modais, total } = DATA;
-    rows = [['Cidade','Modalidade','Geral','Colaborador','Total','% do total','Arrecadado']];
-    events.forEach(e => modais.forEach(m => {
-      const t = e.byMod[m]||0;
-      rows.push([e.id, m.replace('KM',' km'), Math.round(t*(e.geral/e.inscritos)), Math.round(t*(e.colab/e.inscritos)), t, pct(t,total)+'%', 'R$ '+(e.valor*(t/e.inscritos)).toFixed(2)]);
-    }));
-    filename = 'bemolrun2026-vagas.csv';
+    const {tableRows,total}=DATA;
+    rows=[['Cidade','Modalidade','Fonte','Inscritos','% do total','Arrecadado']];
+    tableRows.forEach(r=>rows.push([r.cidade,r.modal==='KIDS'?'Kids':r.modal.replace('KM',' km'),r.source,r.inscritos,pct(r.inscritos,total)+'%',fmtR(r.valor)]));
+    filename='bemolrun2026-vagas.csv';
   }
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));
-  a.download = filename;
-  a.click();
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));
+  a.download=filename; a.click();
 }
 </script>
 </body>
