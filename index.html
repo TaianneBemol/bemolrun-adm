@@ -52,7 +52,7 @@
     /* SOURCE BADGE */
     .source-badge { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
     .source-sap, .source-vendas-app   { background: #E6F1FB; color: #185FA5; }
-    .source-tickets, .source-ticket-sport { background: #F3EAFB; color: #6B21A8; }
+    .source-tickets, .source-ticket-sport { background: #FEF3C7; color: #92400E; }
     .source-kids    { background: #FEF3C7; color: #92400E; }
 
     /* LAYOUT */
@@ -237,8 +237,8 @@
       <div class="chart-card">
         <p class="section-title" style="margin-bottom:10px">Inscrições por dia — por canal</p>
         <div class="legend-row">
-          <span class="legend-item"><span class="legend-dot" style="background:#185FA5"></span>Vendas APP</span>
-          <span class="legend-item"><span class="legend-dot" style="background:#6B21A8"></span>Ticket Sport</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#1A56DB"></span>Vendas APP</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#D97706"></span>Ticket Sport</span>
         </div>
         <div style="position:relative;height:220px;"><canvas id="sourceLineChart"></canvas></div>
       </div>
@@ -684,21 +684,21 @@ function renderOverview() {
     data:{
       labels: dates.map(d=>d.slice(5).replace('-','/')),
       datasets:[
-        { label:'Vendas APP',   data: DATA.dailyBySource['Vendas APP'],   borderColor:'#185FA5', backgroundColor:'#185FA540', tension:0.4, pointRadius:3, fill:true },
-        { label:'Ticket Sport', data: DATA.dailyBySource['Ticket Sport'], borderColor:'#6B21A8', backgroundColor:'#6B21A840', tension:0.4, pointRadius:3, fill:true },
+        { label:'Vendas APP',   data: DATA.dailyBySource['Vendas APP'],   borderColor:'#1A56DB', backgroundColor:'rgba(26,86,219,0.12)', tension:0.4, pointRadius:3, fill:true },
+        { label:'Ticket Sport', data: DATA.dailyBySource['Ticket Sport'], borderColor:'#D97706', backgroundColor:'rgba(217,119,6,0.12)',  tension:0.4, pointRadius:3, fill:true },
       ]
     },
     options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}}, scales:{x:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}},y:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}}} }
   });
 
   document.getElementById('sourceDonutLegend').innerHTML=
-    `<span class="legend-item"><span class="legend-dot" style="background:#185FA5"></span>Vendas APP — ${fmt(sapTotal)} (${pct(sapTotal,total)}%)</span>
-     <span class="legend-item"><span class="legend-dot" style="background:#6B21A8"></span>Ticket Sport — ${fmt(tickTotal)} (${pct(tickTotal,total)}%)</span>`;
+    `<span class="legend-item"><span class="legend-dot" style="background:#1A56DB"></span>Vendas APP — ${fmt(sapTotal)} (${pct(sapTotal,total)}%)</span>
+     <span class="legend-item"><span class="legend-dot" style="background:#D97706"></span>Ticket Sport — ${fmt(tickTotal)} (${pct(tickTotal,total)}%)</span>`;
 
   if(sourceDonutInst)sourceDonutInst.destroy();
   sourceDonutInst=new Chart(document.getElementById('sourceDonutChart'),{
     type:'doughnut',
-    data:{ labels:['Vendas APP','Ticket Sport'], datasets:[{ data:[sapTotal,tickTotal], backgroundColor:['#185FA5','#6B21A8'], borderWidth:0, hoverOffset:4 }] },
+    data:{ labels:['Vendas APP','Ticket Sport'], datasets:[{ data:[sapTotal,tickTotal], backgroundColor:['#1A56DB','#D97706'], borderWidth:0, hoverOffset:4 }] },
     options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, cutout:'62%' }
   });
 
