@@ -51,8 +51,8 @@
 
     /* SOURCE BADGE */
     .source-badge { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
-    .source-sap     { background: #E6F1FB; color: #185FA5; }
-    .source-tickets { background: #F3EAFB; color: #6B21A8; }
+    .source-sap, .source-vendas-app   { background: #E6F1FB; color: #185FA5; }
+    .source-tickets, .source-ticket-sport { background: #F3EAFB; color: #6B21A8; }
     .source-kids    { background: #FEF3C7; color: #92400E; }
 
     /* LAYOUT */
@@ -232,14 +232,31 @@
         <div style="position:relative;height:180px;"><canvas id="donutChart"></canvas></div>
       </div>
     </div>
+    <p class="section-title">Vendas APP vs Ticket Sport</p>
+    <div class="chart-row" style="margin-bottom:1.5rem">
+      <div class="chart-card">
+        <p class="section-title" style="margin-bottom:10px">Inscrições por dia — por canal</p>
+        <div class="legend-row">
+          <span class="legend-item"><span class="legend-dot" style="background:#185FA5"></span>Vendas APP</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#6B21A8"></span>Ticket Sport</span>
+        </div>
+        <div style="position:relative;height:220px;"><canvas id="sourceLineChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <p class="section-title" style="margin-bottom:10px">Total por canal</p>
+        <div style="position:relative;height:200px;"><canvas id="sourceDonutChart"></canvas></div>
+        <div id="sourceDonutLegend" class="legend-row" style="margin-top:12px;margin-bottom:0"></div>
+      </div>
+    </div>
+
     <div class="filter-row">
       <span class="filter-label">Filtrar:</span>
       <select id="filterEvento" onchange="renderTable()"><option value="all">Todas as cidades</option></select>
       <select id="filterModal"  onchange="renderTable()"><option value="all">Todas as modalidades</option></select>
       <select id="filterSource" onchange="renderTable()">
         <option value="all">Todas as fontes</option>
-        <option value="SAP">SAP</option>
-        <option value="Tickets">Tickets</option>
+        <option value="SAP">Vendas APP</option>
+        <option value="Tickets">Ticket Sport</option>
       </select>
     </div>
     <p class="section-title">Detalhamento por cidade e modalidade</p>
@@ -305,7 +322,7 @@
   </div>
 </main>
 
-<footer>BemolRun 2026 &mdash; Painel administrativo &mdash; Fontes: SAP + Tickets</footer>
+<footer>BemolRun 2026 &mdash; Painel administrativo &mdash; Fontes: Vendas APP + Ticket Sport</footer>
 
 <script>
 // ── CONSTANTS ─────────────────────────────────────────────────────────────
@@ -321,7 +338,7 @@ const fmtR = n => 'R$ ' + Number(n).toLocaleString('pt-BR',{minimumFractionDigit
 const pct  = (a,b) => b ? Math.round(a/b*100) : 0;
 
 let DATA = null;
-let lineChartInst=null, donutChartInst=null, shirtBarInst=null, shirtGroupedInst=null;
+let lineChartInst=null, donutChartInst=null, shirtBarInst=null, shirtGroupedInst=null, sourceLineInst=null, sourceDonutInst=null;
 
 // ── LOAD XLSX ─────────────────────────────────────────────────────────────
 fetch('dados.xlsx')
@@ -371,7 +388,7 @@ function processData(sapRaw, tickRaw) {
   const sap = sapRaw
     .filter(r => String(r.STATUS_PAGAMENTO||'').trim().toUpperCase() === 'INSCRITO')
     .map(r => ({
-      source:   'SAP',
+      source:   'Vendas APP',
       cidade:   String(r.EVENTO_ID||'').trim(),
       modal:    String(r.MODALIDADE||'').trim().toUpperCase(),
       genero:   String(r.GENERO||'').trim().toUpperCase(),
@@ -396,7 +413,7 @@ function processData(sapRaw, tickRaw) {
       const cidade   = isKids ? 'Manaus Kids' : String(r.tituloEvento||'').trim();
       const valorRaw = String(r.valorRepasse||'0').replace(',','.');
       return {
-        source:   'Tickets',
+        source:   'Ticket Sport',
         cidade,
         modal:    isKids ? 'KIDS' : modalRaw,
         genero:   String(r.sexo||'').trim().toUpperCase(),
@@ -477,7 +494,7 @@ function processData(sapRaw, tickRaw) {
   cidades.forEach(cidade=>{
     const cityAll  = all.filter(r=>r.cidade===cidade);
     const mList    = cidade==='Manaus Kids'?['KIDS']:[...modais];
-    ['SAP','Tickets'].forEach(source=>{
+    ['Vendas APP','Ticket Sport'].forEach(source=>{
       const srcRows = cityAll.filter(r=>r.source===source);
       if(!srcRows.length) return;
       mList.forEach(m=>{
@@ -488,7 +505,13 @@ function processData(sapRaw, tickRaw) {
     });
   });
 
-  return { total, cidades, modais, colorMap, events, pagtoMap, dates, daily, genderMap, sizeByGender, sizeByCityGender, tableRows };
+  // Daily per source
+  const dailyBySource = {};
+  ['Vendas APP','Ticket Sport'].forEach(src => {
+    dailyBySource[src] = dates.map(d => all.filter(r=>r.source===src&&r.data===d).length);
+  });
+
+  return { total, cidades, modais, colorMap, events, pagtoMap, dates, daily, dailyBySource, genderMap, sizeByGender, sizeByCityGender, tableRows };
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────
@@ -527,7 +550,7 @@ function renderOverview() {
   const km10       = events.filter(e=>!e.isKids).reduce((s,e)=>s+(e.byMod['10KM']||0),0);
 
   document.getElementById('overviewSub').textContent =
-    `SAP + Tickets — ${fmt(total)} inscrições confirmadas em ${cidades.filter(c=>c!=='Manaus Kids').length} cidades`;
+    `Vendas APP + Ticket Sport — ${fmt(total)} inscrições confirmadas em ${cidades.filter(c=>c!=='Manaus Kids').length} cidades`;
 
   document.getElementById('overviewMetrics').innerHTML = [
     { label:'Total inscritos', value:fmt(total),                         sub:`${cidades.filter(c=>c!=='Manaus Kids').length} cidades + Kids` },
@@ -551,7 +574,7 @@ function renderOverview() {
       <span class="event-row-label">${m.replace('KM',' km')}</span>
       <span class="event-row-val">${fmt(e.byMod[m]||0)} <span style="color:var(--text-tertiary);font-weight:400;font-size:12px">(${pct(e.byMod[m]||0,e.inscritos)}%)</span></span>
     </div>`).join('');
-    const badges = e.sources.map(s=>`<span class="source-badge source-${s.toLowerCase()}">${s}</span>`).join(' ');
+    const badges = e.sources.map(s=>`<span class="source-badge source-${s==='Vendas APP'?'vendas-app':'ticket-sport'}">${s}</span>`).join(' ');
     return `<div class="event-card">
       <div class="event-name"><span class="event-dot" style="background:${e.color}"></span>${e.id} ${badges}</div>
       <div class="event-rows">
@@ -574,7 +597,7 @@ function renderOverview() {
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <span class="event-dot" style="background:${KIDS_COLOR}"></span>
         <span style="font-size:15px;font-weight:600">Manaus Kids</span>
-        <span class="source-badge source-kids">Tickets</span>
+        <span class="source-badge source-ticket-sport">Ticket Sport</span>
       </div>
       <div style="display:flex;gap:2rem;flex-wrap:wrap;flex:1">
         <div><div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Inscritos</div><div style="font-size:20px;font-weight:600">${fmt(kidsEvt.inscritos)}</div></div>
@@ -650,6 +673,35 @@ function renderOverview() {
     options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, cutout:'65%' }
   });
 
+  // ── Source comparison charts ──────────────────────────────────────────
+  const sapTotal  = DATA.tableRows.filter(r=>r.source==='Vendas APP').reduce((s,r)=>s+r.inscritos,0);
+  const tickTotal = DATA.tableRows.filter(r=>r.source==='Ticket Sport').reduce((s,r)=>s+r.inscritos,0);
+
+  // For daily line: use dailyBySource from DATA
+  if(sourceLineInst)sourceLineInst.destroy();
+  sourceLineInst=new Chart(document.getElementById('sourceLineChart'),{
+    type:'line',
+    data:{
+      labels: dates.map(d=>d.slice(5).replace('-','/')),
+      datasets:[
+        { label:'Vendas APP',   data: DATA.dailyBySource['Vendas APP'],   borderColor:'#185FA5', backgroundColor:'#185FA540', tension:0.4, pointRadius:3, fill:true },
+        { label:'Ticket Sport', data: DATA.dailyBySource['Ticket Sport'], borderColor:'#6B21A8', backgroundColor:'#6B21A840', tension:0.4, pointRadius:3, fill:true },
+      ]
+    },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}}, scales:{x:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}},y:{grid:{color:gridC},ticks:{color:textC,font:{size:11}}}} }
+  });
+
+  document.getElementById('sourceDonutLegend').innerHTML=
+    `<span class="legend-item"><span class="legend-dot" style="background:#185FA5"></span>Vendas APP — ${fmt(sapTotal)} (${pct(sapTotal,total)}%)</span>
+     <span class="legend-item"><span class="legend-dot" style="background:#6B21A8"></span>Ticket Sport — ${fmt(tickTotal)} (${pct(tickTotal,total)}%)</span>`;
+
+  if(sourceDonutInst)sourceDonutInst.destroy();
+  sourceDonutInst=new Chart(document.getElementById('sourceDonutChart'),{
+    type:'doughnut',
+    data:{ labels:['Vendas APP','Ticket Sport'], datasets:[{ data:[sapTotal,tickTotal], backgroundColor:['#185FA5','#6B21A8'], borderWidth:0, hoverOffset:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, cutout:'62%' }
+  });
+
   renderTable();
 }
 
@@ -668,7 +720,7 @@ function renderTable() {
     return `<tr>
       <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0"></span>${r.cidade}</span></td>
       <td>${r.modal==='KIDS'?'Kids':r.modal.replace('KM',' km')}</td>
-      <td><span class="source-badge source-${r.source.toLowerCase()}">${r.source}</span></td>
+      <td><span class="source-badge source-${r.source==='Vendas APP'?'vendas-app':'ticket-sport'}">${r.source}</span></td>
       <td style="font-weight:600">${fmt(r.inscritos)}</td>
       <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${Math.min(p*3,100)}%;background:${r.color}"></div></div><span class="bar-pct">${p}%</span></div></td>
       <td style="color:${r.color};font-weight:500">${fmtR(r.valor)}</td>
@@ -682,7 +734,7 @@ function renderShirtPage() {
   const F=genderMap['F']||0, M=genderMap['M']||0;
 
   document.getElementById('shirtSub').textContent=
-    `Distribuição de tamanhos e gênero — SAP + Tickets — ${fmt(total)} atletas`;
+    `Distribuição de tamanhos e gênero — Vendas APP + Ticket Sport — ${fmt(total)} atletas`;
 
   const totalBySize={};
   SIZES.forEach(s=>totalBySize[s]=(sizeByGender.F[s]||0)+(sizeByGender.M[s]||0));
@@ -692,7 +744,7 @@ function renderShirtPage() {
     {label:'Feminino',                        value:fmt(F),    sub:pct(F,total)+'% dos inscritos'},
     {label:'Masculino',                       value:fmt(M),    sub:pct(M,total)+'% dos inscritos'},
     {label:'Tamanho mais pedido',             value:topSize,   sub:fmt(totalBySize[topSize])+' unidades ('+pct(totalBySize[topSize],total)+'%)'},
-    {label:'Total de camisetas distribuídas', value:fmt(F+M),  sub:'SAP + Tickets'},
+    {label:'Total de camisetas distribuídas', value:fmt(F+M),  sub:'Vendas APP + Ticket Sport'},
   ].map(m=>`<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-value">${m.value}</div><div class="metric-sub">${m.sub}</div></div>`).join('');
 
   document.getElementById('countF').textContent=fmt(F);
