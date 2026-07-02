@@ -390,12 +390,13 @@
             <th class="sortable" onclick="sortCorridas('cidade')">Cidade <span class="sort-icon" id="sort-cidade"></span></th>
             <th class="sortable" onclick="sortCorridas('modal')">Modalidade <span class="sort-icon" id="sort-modal"></span></th>
             <th class="sortable" onclick="sortCorridas('genero')">Gênero <span class="sort-icon" id="sort-genero"></span></th>
+            <th class="sortable" onclick="sortCorridas('nascimento')">Dt. Nasc. <span class="sort-icon" id="sort-nascimento"></span></th>
+            <th class="sortable" onclick="sortCorridas('categoria')">Categoria <span class="sort-icon" id="sort-categoria"></span></th>
             <th class="sortable" onclick="sortCorridas('tamanho')">Camiseta <span class="sort-icon" id="sort-tamanho"></span></th>
             <th class="sortable" onclick="sortCorridas('pagto')">Pagamento <span class="sort-icon" id="sort-pagto"></span></th>
             <th class="sortable" onclick="sortCorridas('valor')">Valor <span class="sort-icon" id="sort-valor"></span></th>
             <th class="sortable" onclick="sortCorridas('source')">Fonte <span class="sort-icon" id="sort-source"></span></th>
             <th class="sortable" onclick="sortCorridas('data')">Data Inscrição <span class="sort-icon" id="sort-data"></span></th>
-            <th>Data Corrida</th>
           </tr>
         </thead>
         <tbody id="corridasBody"></tbody>
@@ -488,9 +489,10 @@ function processData(sapRaw, tickRaw) {
       genero:   String(r.GENERO||'').trim().toUpperCase(),
       tamanho:  String(r.TAMANHO||'').trim().toUpperCase(),
       pagto:    String(r.TIPO_PAGAMENTO||'').trim().toUpperCase(),
-      categoria:String(r.CATEGORIA||'').trim().toUpperCase(),
+      categoria:String(r.CATEGORIA||'').trim(),
       valor:    parseFloat(String(r.VALOR||'0').replace(',','.'))||0,
       data:     parseDate(r.DATA),
+      nascimento: parseDate(r.DATA_NASCIMENTO),
     }));
 
   // Tickets rows
@@ -516,9 +518,10 @@ function processData(sapRaw, tickRaw) {
         genero:   String(r.sexo||'').trim().toUpperCase(),
         tamanho,
         pagto,
-        categoria:'GERAL',
+        categoria: String(r.categoria||'').trim(),
         valor:    parseFloat(valorRaw)||0,
         data:     parseDate(r.dataPedido),
+        nascimento: parseDate(r.nascimento),
       };
     });
 
@@ -610,17 +613,19 @@ function processData(sapRaw, tickRaw) {
 
   // Individual rows for Corridas tab
   const individuais = all.map(r => ({
-    nome:    r.nome    || '',
-    cpf:     r.cpf     || '',
-    email:   r.email   || '',
-    cidade:  r.cidade,
-    modal:   r.modal,
-    genero:  r.genero  || '',
-    tamanho: r.tamanho || '',
-    pagto:   r.pagto   || '',
-    valor:   r.valor,
-    source:  r.source,
-    data:    r.data,
+    nome:       r.nome       || '',
+    cpf:        r.cpf        || '',
+    email:      r.email      || '',
+    cidade:     r.cidade,
+    modal:      r.modal,
+    genero:     r.genero     || '',
+    tamanho:    r.tamanho    || '',
+    pagto:      r.pagto      || '',
+    categoria:  r.categoria  || '',
+    nascimento: r.nascimento || '',
+    valor:      r.valor,
+    source:     r.source,
+    data:       r.data,
   }));
 
   return { total, cidades, modais, colorMap, events, pagtoMap, dates, daily, dailyBySource, genderMap, sizeByGender, sizeByCityGender, tableRows, individuais };
@@ -1062,28 +1067,21 @@ function renderCorridasPage() {
     const mLabel   = r.modal === 'KIDS' ? 'Kids' : r.modal.replace('KM',' km');
     const srcCls   = r.source === 'Vendas APP' ? 'vendas-app' : 'ticket-sport';
     const dataFmt  = r.data ? r.data.slice(8,10)+'/'+r.data.slice(5,7)+'/'+r.data.slice(0,4) : '—';
-    const raceISO  = RACE_DATES[r.cidade];
-    const today    = new Date().toISOString().slice(0,10);
-    const raceDate = raceISO ? raceISO.slice(8,10)+'/'+raceISO.slice(5,7)+'/'+raceISO.slice(0,4) : '—';
-    const raceStyle = raceISO && raceISO < today
-      ? 'color:#1D9E75;font-weight:600'   // concluída — verde
-      : 'color:var(--text-primary);font-weight:500'; // futura
-    const raceDot = raceISO && raceISO < today
-      ? `<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#1D9E75;flex-shrink:0"></span>${raceDate}</span>`
-      : `<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#EF9F27;flex-shrink:0"></span>${raceDate}</span>`;
+    const nascFmt  = r.nascimento ? r.nascimento.slice(8,10)+'/'+r.nascimento.slice(5,7)+'/'+r.nascimento.slice(0,4) : '—';
     return `<tr>
       <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.nome}">${r.nome||'—'}</td>
       <td style="white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></span>${r.cidade}</span></td>
       <td>${mLabel}</td>
       <td>${genLabel[r.genero]||r.genero||'—'}</td>
+      <td style="color:var(--text-secondary)">${nascFmt}</td>
+      <td>${r.categoria||'—'}</td>
       <td style="font-weight:500">${r.tamanho||'—'}</td>
       <td>${payLabel[r.pagto]||r.pagto||'—'}</td>
       <td style="font-weight:500;white-space:nowrap">R$ ${Number(r.valor).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
       <td><span class="source-badge source-${srcCls}">${r.source}</span></td>
       <td style="color:var(--text-secondary)">${dataFmt}</td>
-      <td style="${raceStyle}">${raceDot}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="10" style="text-align:center;color:var(--text-tertiary);padding:32px">Nenhum inscrito encontrado.</td></tr>`;
+  }).join('') || `<tr><td colspan="11" style="text-align:center;color:var(--text-tertiary);padding:32px">Nenhum inscrito encontrado.</td></tr>`;
 
   // Pagination
   if (pages <= 1) { document.getElementById('pagination').innerHTML=''; return; }
@@ -1137,17 +1135,24 @@ function exportCSV() {
       return true;
     });
 
-    const genLabel = { F:'Fem.', M:'Masc.' };
+    const genLabel = { F:'Feminino', M:'Masculino' };
     const payLabel = { PIX:'PIX', CB:'Cartão/Boleto' };
-    rows = [['Nome','CPF','Email','Cidade','Modalidade','Gênero','Camiseta','Pagamento','Valor','Fonte','Data']];
-    filtered.forEach(r => rows.push([
-      r.nome, r.cpf, r.email, r.cidade,
-      r.modal==='KIDS'?'Kids':r.modal.replace('KM',' km'),
-      genLabel[r.genero] || r.genero || '',
-      r.tamanho, payLabel[r.pagto]||r.pagto,
-      Number(r.valor).toFixed(2),
-      r.source, r.data
-    ]));
+    rows = [['Nome','CPF','Email','Cidade','Modalidade','Gênero','Dt. Nascimento','Categoria','Camiseta','Pagamento','Valor','Fonte','Data Inscrição']];
+    filtered.forEach(r => {
+      const nascFmt = r.nascimento ? r.nascimento.slice(8,10)+'/'+r.nascimento.slice(5,7)+'/'+r.nascimento.slice(0,4) : '';
+      rows.push([
+        r.nome, r.cpf, r.email, r.cidade,
+        r.modal==='KIDS'?'Kids':r.modal.replace('KM',' km'),
+        genLabel[r.genero] || r.genero || '',
+        nascFmt,
+        r.categoria || '',
+        r.tamanho,
+        payLabel[r.pagto]||r.pagto,
+        Number(r.valor).toFixed(2),
+        r.source,
+        r.data ? r.data.slice(8,10)+'/'+r.data.slice(5,7)+'/'+r.data.slice(0,4) : '',
+      ]);
+    });
     const cityLabel = corridaCity === 'all' ? 'todas-cidades' : corridaCity.toLowerCase().replace(/\s+/g,'-');
     filename = `bemolrun2026-${cityLabel}.csv`;
   } else if(page==='page-camisetas'){
@@ -1206,11 +1211,10 @@ function exportXLSX() {
   const genLabel = { F:'Feminino', M:'Masculino' };
   const payLabel = { PIX:'PIX', CB:'Cartão/Boleto' };
 
-  const headers = ['Nome','CPF','E-mail','Cidade','Modalidade','Gênero','Camiseta','Pagamento','Valor (R$)','Fonte','Data Inscrição','Data Corrida'];
+  const headers = ['Nome','CPF','E-mail','Cidade','Modalidade','Gênero','Dt. Nascimento','Categoria','Camiseta','Pagamento','Valor (R$)','Fonte','Data Inscrição'];
   const today   = new Date().toISOString().slice(0,10);
   const rows = filtered.map(r => {
-    const raceISO  = RACE_DATES[r.cidade];
-    const raceDate = raceISO ? raceISO.slice(8,10)+'/'+raceISO.slice(5,7)+'/'+raceISO.slice(0,4) : '';
+    const nascFmt = r.nascimento ? r.nascimento.slice(8,10)+'/'+r.nascimento.slice(5,7)+'/'+r.nascimento.slice(0,4) : '';
     return [
       r.nome   || '',
       r.cpf    || '',
@@ -1218,19 +1222,20 @@ function exportXLSX() {
       r.cidade,
       r.modal === 'KIDS' ? 'Kids' : r.modal.replace('KM',' km'),
       genLabel[r.genero] || r.genero || '',
+      nascFmt,
+      r.categoria || '',
       r.tamanho || '',
       payLabel[r.pagto] || r.pagto || '',
       Number(r.valor),
       r.source,
       r.data ? r.data.slice(8,10)+'/'+r.data.slice(5,7)+'/'+r.data.slice(0,4) : '',
-      raceDate,
     ];
   });
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   ws['!cols'] = [
     {wch:28},{wch:16},{wch:32},{wch:14},{wch:12},
-    {wch:10},{wch:10},{wch:16},{wch:12},{wch:14},{wch:14},{wch:14},
+    {wch:8},{wch:14},{wch:18},{wch:10},{wch:16},{wch:12},{wch:14},{wch:14},
   ];
 
   const wb = XLSX.utils.book_new();
