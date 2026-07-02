@@ -163,6 +163,27 @@
     .city-size-fill { height: 100%; border-radius: 3px; }
     .city-size-n { min-width: 30px; text-align: right; color: var(--text-secondary); }
 
+    /* CORRIDAS PAGE */
+    .city-btn-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:1.2rem; }
+    .city-btn { font-size:13px; font-family:var(--font); font-weight:500; padding:7px 16px; border-radius:20px; border:1.5px solid var(--border-mid); background:var(--bg-primary); color:var(--text-secondary); cursor:pointer; transition:all 0.15s; display:flex; align-items:center; gap:6px; }
+    .city-btn:hover { color:var(--text-primary); }
+    .city-btn.active { color:#fff; border-color:transparent; }
+    .city-btn-count { font-size:11px; opacity:0.8; font-weight:400; }
+    .corridas-filters { display:flex; gap:8px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
+    .search-wrap { position:relative; flex:1; min-width:220px; }
+    .search-wrap svg { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-tertiary); pointer-events:none; }
+    .search-wrap input { width:100%; font-size:13px; font-family:var(--font); border:0.5px solid var(--border-mid); border-radius:var(--radius-md); padding:7px 10px 7px 30px; background:var(--bg-primary); color:var(--text-primary); outline:none; }
+    .search-wrap input:focus { border-color:#378ADD; }
+    .corridas-count { font-size:12px; color:var(--text-tertiary); white-space:nowrap; margin-left:4px; }
+    th.sortable { cursor:pointer; user-select:none; }
+    th.sortable:hover { color:var(--text-primary); }
+    .sort-icon { font-size:10px; margin-left:2px; }
+    .pagination { display:flex; gap:6px; justify-content:center; margin-top:1rem; flex-wrap:wrap; }
+    .page-btn { font-size:13px; font-family:var(--font); padding:5px 12px; border-radius:var(--radius-md); border:0.5px solid var(--border-mid); background:var(--bg-primary); color:var(--text-secondary); cursor:pointer; }
+    .page-btn:hover { background:var(--bg-secondary); color:var(--text-primary); }
+    .page-btn.active { background:#1a1a18; color:#fff; border-color:#1a1a18; }
+    @media (prefers-color-scheme:dark) { .page-btn.active { background:#e8e6df; color:#1a1a18; } }
+
     footer { text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 2rem 1rem; border-top: 0.5px solid var(--border-light); margin-top: 1rem; }
   </style>
 </head>
@@ -202,6 +223,10 @@
       <button class="tab-btn" id="tab-camisetas" role="tab" aria-selected="false" onclick="switchTab('camisetas')">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 1H9L11 3L14 2V6L11 5V13H3V5L0 6V2L3 3L5 1Z" stroke="currentColor" stroke-width="1" fill="none" stroke-linejoin="round"/></svg>
         Camisetas
+      </button>
+      <button class="tab-btn" id="tab-corridas" role="tab" aria-selected="false" onclick="switchTab('corridas')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="9" cy="2.5" r="1.5" stroke="currentColor" stroke-width="1" fill="none"/><path d="M7 5L5 8H8L6.5 12M7 5L9.5 6.5L11 5M7 5L5.5 3.5" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        Informações Corridas
       </button>
     </div>
     <button class="export-btn" onclick="exportCSV()">⬇ Exportar CSV</button>
@@ -320,6 +345,54 @@
       </table>
     </div>
   </div>
+  <!-- INFORMAÇÕES CORRIDAS -->
+  <div class="page" id="page-corridas">
+    <h1 class="page-title">Informações Corridas</h1>
+    <p class="page-sub" id="corridasSub">Carregando...</p>
+
+    <div class="city-btn-row" id="cityBtnRow"></div>
+
+    <div class="corridas-filters">
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><line x1="9.5" y1="9.5" x2="13" y2="13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        <input type="text" id="corridaSearch" placeholder="Buscar por nome, CPF ou e-mail..." oninput="renderCorridasPage()" />
+      </div>
+      <select id="corridaModalFilter" onchange="renderCorridasPage()">
+        <option value="all">Todas as modalidades</option>
+      </select>
+      <select id="corridaGeneroFilter" onchange="renderCorridasPage()">
+        <option value="all">Todos os gêneros</option>
+        <option value="F">Feminino</option>
+        <option value="M">Masculino</option>
+      </select>
+      <select id="corridaSourceFilter" onchange="renderCorridasPage()">
+        <option value="all">Todas as fontes</option>
+        <option value="Vendas APP">Vendas APP</option>
+        <option value="Ticket Sport">Ticket Sport</option>
+      </select>
+      <span class="corridas-count" id="corridasCount"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortCorridas('nome')">Nome <span class="sort-icon" id="sort-nome"></span></th>
+            <th class="sortable" onclick="sortCorridas('cidade')">Cidade <span class="sort-icon" id="sort-cidade"></span></th>
+            <th class="sortable" onclick="sortCorridas('modal')">Modalidade <span class="sort-icon" id="sort-modal"></span></th>
+            <th class="sortable" onclick="sortCorridas('genero')">Gênero <span class="sort-icon" id="sort-genero"></span></th>
+            <th class="sortable" onclick="sortCorridas('tamanho')">Camiseta <span class="sort-icon" id="sort-tamanho"></span></th>
+            <th class="sortable" onclick="sortCorridas('pagto')">Pagamento <span class="sort-icon" id="sort-pagto"></span></th>
+            <th class="sortable" onclick="sortCorridas('valor')">Valor <span class="sort-icon" id="sort-valor"></span></th>
+            <th class="sortable" onclick="sortCorridas('source')">Fonte <span class="sort-icon" id="sort-source"></span></th>
+            <th class="sortable" onclick="sortCorridas('data')">Data <span class="sort-icon" id="sort-data"></span></th>
+          </tr>
+        </thead>
+        <tbody id="corridasBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
 </main>
 
 <footer>BemolRun 2026 &mdash; Painel administrativo &mdash; Fontes: Vendas APP + Ticket Sport</footer>
@@ -389,6 +462,9 @@ function processData(sapRaw, tickRaw) {
     .filter(r => String(r.STATUS_PAGAMENTO||'').trim().toUpperCase() === 'INSCRITO')
     .map(r => ({
       source:   'Vendas APP',
+      nome:     String(r.NOME||'').trim(),
+      cpf:      String(r.CPF||'').trim(),
+      email:    String(r.EMAIL||'').trim(),
       cidade:   String(r.EVENTO_ID||'').trim(),
       modal:    String(r.MODALIDADE||'').trim().toUpperCase(),
       genero:   String(r.GENERO||'').trim().toUpperCase(),
@@ -414,6 +490,9 @@ function processData(sapRaw, tickRaw) {
       const valorRaw = String(r.valorRepasse||'0').replace(',','.');
       return {
         source:   'Ticket Sport',
+        nome:     String(r.nome||'').trim(),
+        cpf:      String(r.documento||'').trim(),
+        email:    String(r.email||'').trim(),
         cidade,
         modal:    isKids ? 'KIDS' : modalRaw,
         genero:   String(r.sexo||'').trim().toUpperCase(),
@@ -511,7 +590,22 @@ function processData(sapRaw, tickRaw) {
     dailyBySource[src] = dates.map(d => all.filter(r=>r.source===src&&r.data===d).length);
   });
 
-  return { total, cidades, modais, colorMap, events, pagtoMap, dates, daily, dailyBySource, genderMap, sizeByGender, sizeByCityGender, tableRows };
+  // Individual rows for Corridas tab
+  const individuais = all.map(r => ({
+    nome:    r.nome    || '—',
+    cpf:     r.cpf     || '—',
+    email:   r.email   || '—',
+    cidade:  r.cidade,
+    modal:   r.modal,
+    genero:  r.genero  || '',
+    tamanho: r.tamanho || '—',
+    pagto:   r.pagto   || '—',
+    valor:   r.valor,
+    source:  r.source,
+    data:    r.data,
+  }));
+
+  return { total, cidades, modais, colorMap, events, pagtoMap, dates, daily, dailyBySource, genderMap, sizeByGender, sizeByCityGender, tableRows, individuais };
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────
@@ -520,6 +614,7 @@ function boot() {
   populateFilters();
   renderOverview();
   renderShirtPage();
+  renderCorridasTab();
   document.getElementById('updatedAt').textContent =
     'Atualizado às ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 }
@@ -827,11 +922,155 @@ function renderShirtPage() {
   }).join('');
 }
 
+// ── CORRIDAS TAB ──────────────────────────────────────────────────────────
+let corridaCity = 'all';
+let corridaSort = { key:'nome', dir:1 };
+let corridaPage = 1;
+const ROWS_PER_PAGE = 50;
+
+function renderCorridasTab() {
+  const { cidades, colorMap, modais, individuais } = DATA;
+
+  document.getElementById('corridasSub').textContent =
+    `${fmt(individuais.length)} atletas inscritos — Vendas APP + Ticket Sport`;
+
+  // City buttons
+  const allCidades = ['all', ...cidades];
+  document.getElementById('cityBtnRow').innerHTML = allCidades.map(c => {
+    const count  = c === 'all' ? individuais.length : individuais.filter(r=>r.cidade===c).length;
+    const color  = c === 'all' ? '#1a1a18' : colorMap[c];
+    const label  = c === 'all' ? 'Todas' : c;
+    const active = corridaCity === c;
+    return `<button class="city-btn${active?' active':''}"
+      style="${active ? `background:${color};border-color:${color}` : `border-color:${color}55`}"
+      onclick="setCidadeFilter('${c}')">
+      <span class="event-dot" style="background:${active?'rgba(255,255,255,0.7)':color}"></span>
+      ${label}
+      <span class="city-btn-count">(${fmt(count)})</span>
+    </button>`;
+  }).join('');
+
+  // Populate modal filter once
+  const mSel = document.getElementById('corridaModalFilter');
+  if (mSel.options.length === 1) {
+    [...modais, 'KIDS'].forEach(m => {
+      const o = document.createElement('option');
+      o.value = m;
+      o.textContent = m === 'KIDS' ? 'Kids' : m.replace('KM',' km');
+      mSel.appendChild(o);
+    });
+  }
+
+  renderCorridasPage();
+}
+
+function setCidadeFilter(c) {
+  corridaCity = c;
+  corridaPage = 1;
+  renderCorridasTab();
+}
+
+function renderCorridasPage() {
+  const { individuais, colorMap } = DATA;
+  const search = document.getElementById('corridaSearch').value.toLowerCase().trim();
+  const modal  = document.getElementById('corridaModalFilter').value;
+  const genero = document.getElementById('corridaGeneroFilter').value;
+  const source = document.getElementById('corridaSourceFilter').value;
+
+  let filtered = individuais.filter(r => {
+    if (corridaCity !== 'all' && r.cidade !== corridaCity) return false;
+    if (modal  !== 'all' && r.modal  !== modal)  return false;
+    if (genero !== 'all' && r.genero !== genero) return false;
+    if (source !== 'all' && r.source !== source) return false;
+    if (search) {
+      const hay = (r.nome + r.cpf + r.email).toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  // Sort
+  filtered.sort((a, b) => {
+    let va = a[corridaSort.key] ?? '';
+    let vb = b[corridaSort.key] ?? '';
+    if (corridaSort.key === 'valor') { va = Number(va); vb = Number(vb); }
+    else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
+    return va < vb ? -corridaSort.dir : va > vb ? corridaSort.dir : 0;
+  });
+
+  const total  = filtered.length;
+  const pages  = Math.max(1, Math.ceil(total / ROWS_PER_PAGE));
+  corridaPage  = Math.min(corridaPage, pages);
+  const start  = (corridaPage - 1) * ROWS_PER_PAGE;
+  const slice  = filtered.slice(start, start + ROWS_PER_PAGE);
+
+  document.getElementById('corridasCount').textContent =
+    `${fmt(total)} inscrito${total!==1?'s':''} encontrado${total!==1?'s':''}`;
+
+  const genLabel = { F:'Feminino', M:'Masculino' };
+  const payLabel = { PIX:'PIX', CB:'Cartão/Boleto' };
+
+  document.getElementById('corridasBody').innerHTML = slice.map(r => {
+    const color  = colorMap[r.cidade] || '#888';
+    const mLabel = r.modal === 'KIDS' ? 'Kids' : r.modal.replace('KM',' km');
+    const srcCls = r.source === 'Vendas APP' ? 'vendas-app' : 'ticket-sport';
+    const dataFmt = r.data ? r.data.slice(8,10)+'/'+r.data.slice(5,7)+'/'+r.data.slice(0,4) : '—';
+    return `<tr>
+      <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.nome}">${r.nome||'—'}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></span>${r.cidade}</span></td>
+      <td>${mLabel}</td>
+      <td>${genLabel[r.genero]||r.genero||'—'}</td>
+      <td style="font-weight:500">${r.tamanho||'—'}</td>
+      <td>${payLabel[r.pagto]||r.pagto||'—'}</td>
+      <td style="font-weight:500">R$ ${Number(r.valor).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td><span class="source-badge source-${srcCls}">${r.source}</span></td>
+      <td style="color:var(--text-secondary)">${dataFmt}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="9" style="text-align:center;color:var(--text-tertiary);padding:32px">Nenhum inscrito encontrado.</td></tr>`;
+
+  // Pagination
+  if (pages <= 1) { document.getElementById('pagination').innerHTML=''; return; }
+  let html = '';
+  if (corridaPage > 1) html += `<button class="page-btn" onclick="goPage(${corridaPage-1})">← Anterior</button>`;
+  const s_ = Math.max(1, corridaPage-2), e_ = Math.min(pages, corridaPage+2);
+  if (s_ > 1) html += `<button class="page-btn" onclick="goPage(1)">1</button>${s_>2?'<span style="padding:0 4px;color:var(--text-tertiary)">…</span>':''}`;
+  for (let i=s_; i<=e_; i++) html += `<button class="page-btn${i===corridaPage?' active':''}" onclick="goPage(${i})">${i}</button>`;
+  if (e_ < pages) html += `${e_<pages-1?'<span style="padding:0 4px;color:var(--text-tertiary)">…</span>':''}<button class="page-btn" onclick="goPage(${pages})">${pages}</button>`;
+  if (corridaPage < pages) html += `<button class="page-btn" onclick="goPage(${corridaPage+1})">Próxima →</button>`;
+  document.getElementById('pagination').innerHTML = html;
+}
+
+function goPage(n) {
+  corridaPage = n;
+  renderCorridasPage();
+  document.getElementById('page-corridas').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function sortCorridas(key) {
+  if (corridaSort.key === key) corridaSort.dir *= -1;
+  else { corridaSort.key = key; corridaSort.dir = 1; }
+  document.querySelectorAll('.sort-icon').forEach(el => el.textContent = '');
+  document.getElementById('sort-'+key).textContent = corridaSort.dir === 1 ? ' ↑' : ' ↓';
+  renderCorridasPage();
+}
+
 // ── EXPORT ────────────────────────────────────────────────────────────────
 function exportCSV() {
   const page=document.querySelector('.page.active').id;
   let rows, filename;
-  if(page==='page-camisetas'){
+  if (page === 'page-corridas') {
+    const { individuais } = DATA;
+    rows = [['Nome','CPF','Email','Cidade','Modalidade','Gênero','Camiseta','Pagamento','Valor','Fonte','Data']];
+    individuais.forEach(r => rows.push([
+      r.nome, r.cpf, r.email, r.cidade,
+      r.modal==='KIDS'?'Kids':r.modal.replace('KM',' km'),
+      r.genero==='F'?'Feminino':r.genero==='M'?'Masculino':r.genero,
+      r.tamanho, r.pagto,
+      Number(r.valor).toFixed(2),
+      r.source, r.data
+    ]));
+    filename = 'bemolrun2026-inscritos.csv';
+  } else if(page==='page-camisetas'){
     const {cidades,sizeByCityGender}=DATA;
     rows=[['Cidade','Gênero',...SIZES,'Total']];
     cidades.filter(c=>c!=='Manaus Kids').forEach(c=>{
