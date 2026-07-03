@@ -634,6 +634,12 @@ function processData(sapRaw, tickRaw) {
 // ── BOOT ──────────────────────────────────────────────────────────────────
 function boot() {
   document.getElementById('loading').style.display = 'none';
+
+  // Diagnóstico — remover depois de confirmar
+  console.log('=== SAP primeiros campos ===', Object.keys(DATA.individuais[0] || {}));
+  console.log('=== Amostra individuais[0] ===', DATA.individuais[0]);
+  console.log('=== Amostra individuais[1] ===', DATA.individuais[1]);
+
   populateFilters();
   renderOverview();
   renderShirtPage();
