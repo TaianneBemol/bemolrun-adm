@@ -439,13 +439,30 @@ fetch('dados.xlsx')
     document.getElementById('loadingText').textContent = 'Lendo planilha...';
     const wb = XLSX.read(buf, { type:'array', cellDates:true });
 
-    const sapSheet  = wb.Sheets[SAP_SHEET];
-    const tickSheet = wb.Sheets[TICK_SHEET];
+    const sheetNames = wb.SheetNames;
+    console.log('Abas encontradas:', sheetNames);
 
-    if (!sapSheet)  throw new Error(`Aba "${SAP_SHEET}" não encontrada`);
-    if (!tickSheet) throw new Error(`Aba "${TICK_SHEET}" não encontrada`);
+    // Busca flexível — ignora maiúsculas, espaços e acentos
+    const normalize = s => s.trim().toLowerCase().replace(/\s+/g,' ');
+    const findSheet = (target) => {
+      const t = normalize(target);
+      // Exact match first
+      let found = sheetNames.find(n => normalize(n) === t);
+      // Partial match fallback
+      if (!found) found = sheetNames.find(n => normalize(n).includes(t) || t.includes(normalize(n)));
+      return found || null;
+    };
+
+    const sapName  = findSheet(SAP_SHEET);
+    const tickName = findSheet(TICK_SHEET);
+
+    if (!sapName)  throw new Error(`Aba SAP não encontrada. Abas: ${sheetNames.join(', ')}`);
+    if (!tickName) throw new Error(`Aba Tickets não encontrada. Abas: ${sheetNames.join(', ')}`);
 
     document.getElementById('loadingText').textContent = 'Processando dados...';
+
+    const sapSheet  = wb.Sheets[sapName];
+    const tickSheet = wb.Sheets[tickName];
 
     const sapRaw  = XLSX.utils.sheet_to_json(sapSheet,  { defval:'' });
     const tickRaw = XLSX.utils.sheet_to_json(tickSheet, { defval:'' });
@@ -634,12 +651,6 @@ function processData(sapRaw, tickRaw) {
 // ── BOOT ──────────────────────────────────────────────────────────────────
 function boot() {
   document.getElementById('loading').style.display = 'none';
-
-  // Diagnóstico — remover depois de confirmar
-  console.log('=== SAP primeiros campos ===', Object.keys(DATA.individuais[0] || {}));
-  console.log('=== Amostra individuais[0] ===', DATA.individuais[0]);
-  console.log('=== Amostra individuais[1] ===', DATA.individuais[1]);
-
   populateFilters();
   renderOverview();
   renderShirtPage();
@@ -1038,11 +1049,11 @@ function renderCorridasPage() {
     if (genero !== 'all' && r.genero !== genero) return false;
     if (source !== 'all' && r.source !== source) return false;
     if (search) {
-      const searchNorm = search.replace(/[\.\-\/]/g, '');
-      const cpfNorm    = r.cpf.replace(/[\.\-\/]/g, '');
-      const hay        = (r.nome + cpfNorm + r.email).toLowerCase();
-      const hayRaw     = (r.nome + r.cpf + r.email).toLowerCase();
-      if (!hay.includes(searchNorm) && !hayRaw.includes(search)) return false;
+      const sNorm  = search.toLowerCase().replace(/[\.\-\/]/g, '');
+      const hayNome  = (r.nome  || '').toLowerCase();
+      const hayCpf   = (r.cpf   || '').replace(/[\.\-\/]/g, '');
+      const hayEmail = (r.email || '').toLowerCase();
+            if (!hayNome.includes(sNorm) && !hayCpf.includes(sNorm) && !hayEmail.includes(sNorm)) return false;
     }
     return true;
   });
@@ -1197,11 +1208,11 @@ function exportXLSX() {
     if (genero !== 'all' && r.genero !== genero) return false;
     if (source !== 'all' && r.source !== source) return false;
     if (search) {
-      const searchNorm = search.replace(/[\.\-\/]/g, '');
-      const cpfNorm    = r.cpf.replace(/[\.\-\/]/g, '');
-      const hay        = (r.nome + cpfNorm + r.email).toLowerCase();
-      const hayRaw     = (r.nome + r.cpf + r.email).toLowerCase();
-      if (!hay.includes(searchNorm) && !hayRaw.includes(search)) return false;
+      const sNorm  = search.toLowerCase().replace(/[\.\-\/]/g, '');
+      const hayNome  = (r.nome  || '').toLowerCase();
+      const hayCpf   = (r.cpf   || '').replace(/[\.\-\/]/g, '');
+      const hayEmail = (r.email || '').toLowerCase();
+      if (!hayNome.includes(sNorm) && !hayCpf.includes(sNorm) && !hayEmail.includes(sNorm)) return false;
     }
     return true;
   });
